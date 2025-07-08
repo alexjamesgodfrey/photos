@@ -12,13 +12,10 @@ import { useEffect, useState } from "react"
 
 const allNames = [
   "Alex Godfrey",
-  "Mike Chen",
-  "Emily Davis",
-  "James Wilson",
-  "Lisa Rodriguez",
-  "David Kim",
-  "Amanda Taylor",
-  "Chris Brown",
+  "Steven Godfrey",
+  "Doris Godfrey",
+  "Henry Malarkey III",
+  "Brenda Malarkey",
 ] as const
 
 export default function NameCombobox({

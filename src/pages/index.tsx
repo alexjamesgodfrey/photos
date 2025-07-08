@@ -1,9 +1,9 @@
 import NameCombobox from "@/components/NameCombobox"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSupabase } from "@/lib/hooks/useSupabase"
 import { useUser } from "@/lib/hooks/useUser"
-import { Camera, Loader2 } from "lucide-react" // ⬅️ spinner
+import { Camera, CatIcon, Loader2 } from "lucide-react" // ⬅️ spinner
 import { Geist, Geist_Mono } from "next/font/google"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -49,7 +49,19 @@ export default function HomePage() {
     >
       <Card className="w-full max-w-md mx-auto shadow-lg">
         <CardHeader className="text-center pb-6">
-          {/* … header unchanged … */}
+          <CardHeader className="text-center pb-6">
+            <div className="flex justify-center mb-4">
+              <div className="bg-rose-100 p-3 rounded-full">
+                <CatIcon className="h-8 w-8 text-rose-600" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-serif text-gray-800">
+              Alex &amp; Sierra&rsquo;s Wedding
+            </CardTitle>
+            <p className="text-gray-600 mt-2">
+              Share and save our special moments
+            </p>
+          </CardHeader>
         </CardHeader>
 
         <CardContent className="space-y-6">

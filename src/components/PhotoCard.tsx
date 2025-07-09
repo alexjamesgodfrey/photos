@@ -62,20 +62,36 @@ export function PhotoCard({
   }
 
   /* ───────── download helper ──────── */
-  const download = () => {
-    // on mobile we want the OS share / save dialog
-    fetch(photo.fullSrc)
-      .then((r) => r.blob())
-      .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = photo.fullSrc.split("/").pop() ?? "photo.jpg"
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        URL.revokeObjectURL(url)
-      })
+  const download = async () => {
+    const res = await fetch(photo.fullSrc)
+    const blob = await res.blob()
+
+    /* 1️⃣ Try Web Share API with a File, so the user may pick “Save Image” */
+    if (navigator.canShare?.({ files: [] })) {
+      const file = new File(
+        [blob],
+        photo.fullSrc.split("/").pop() ?? "photo.jpg",
+        {
+          type: blob.type,
+        }
+      )
+      try {
+        await navigator.share({ files: [file], title: "Wedding photo" })
+        return // success or user cancelled – either way we’re done
+      } catch {
+        /* fall through on error/cancel */
+      }
+    }
+
+    /* 2️⃣ Fallback: trigger a regular download (drops into Files) */
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = photo.fullSrc.split("/").pop() ?? "photo.jpg"
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
   }
 
   const CatIcon =
@@ -83,9 +99,9 @@ export function PhotoCard({
 
   return (
     <div className="overflow-hidden rounded-xl shadow-sm relative">
-      <div className="relative aspect-square bg-gray-100">
+      <div className="relative aspect-[3/4] bg-gray-100">
         <Image
-          src={photo.src}
+          src={photo.fullSrc}
           alt={`Photo by ${photo.uploader}`}
           fill
           sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
@@ -109,43 +125,54 @@ export function PhotoCard({
         </div>
 
         {/* action menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={busy}>
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
+        {!isOwner ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={busy}
+            onClick={download}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" disabled={busy}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={download}>
-              <Download className="h-4 w-4 mr-2" /> Save
-            </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={download}>
+                <Download className="h-4 w-4 mr-2" /> Save
+              </DropdownMenuItem>
 
-            {isOwner && (
-              <>
-                <DropdownMenuSeparator />
-                {categories
-                  .filter((c) => c.value !== photo.category)
-                  .map((c) => (
-                    <DropdownMenuItem
-                      key={c.value}
-                      onClick={() => changeCategory(c.value)}
-                    >
-                      <c.icon className="h-4 w-4 mr-2" /> {c.label}
-                    </DropdownMenuItem>
-                  ))}
+              {isOwner && (
+                <>
+                  <DropdownMenuSeparator />
+                  {categories
+                    .filter((c) => c.value !== photo.category)
+                    .map((c) => (
+                      <DropdownMenuItem
+                        key={c.value}
+                        onClick={() => changeCategory(c.value)}
+                      >
+                        <c.icon className="h-4 w-4 mr-2" /> {c.label}
+                      </DropdownMenuItem>
+                    ))}
 
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
-                  onClick={deletePhoto}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600"
+                    onClick={deletePhoto}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   )

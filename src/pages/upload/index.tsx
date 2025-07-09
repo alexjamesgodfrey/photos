@@ -26,6 +26,7 @@ import {
   Users,
 } from "lucide-react"
 import { Geist, Geist_Mono } from "next/font/google"
+import Head from "next/head"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { v4 as newUUID } from "uuid"
@@ -208,173 +209,210 @@ export default function UploadPage() {
   if (!userName) return null
 
   return (
-    <div
-      className={`min-h-screen bg-gray-50 ${geistSans.className} ${geistMono.className}`}
-    >
-      {/* Header */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/gallery")}
-              className="p-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="font-serif text-lg font-semibold text-gray-800">
-              Upload Photos
-            </h1>
-            <div className="w-10" />
+    <>
+      <Head>
+        <title>Upload Photos - Alex & Sierra's Wedding</title>
+        <meta
+          name="description"
+          content="Share your special moments from Alex & Sierra's wedding celebration by uploading your photos."
+        />
+        <meta name="robots" content="noindex, nofollow" />
+
+        {/* Page-specific Open Graph */}
+        <meta
+          property="og:title"
+          content="Upload Photos - Alex & Sierra's Wedding"
+        />
+        <meta
+          property="og:description"
+          content="Share your special moments from Alex & Sierra's wedding celebration by uploading your photos."
+        />
+        <meta property="og:image" content="/cover-photo.png" />
+
+        {/* Page-specific Twitter */}
+        <meta
+          name="twitter:title"
+          content="Upload Photos - Alex & Sierra's Wedding"
+        />
+        <meta
+          name="twitter:description"
+          content="Share your special moments from Alex & Sierra's wedding celebration by uploading your photos."
+        />
+        <meta name="twitter:image" content="/cover-photo.png" />
+      </Head>
+
+      <div
+        className={`min-h-screen bg-gray-50 ${geistSans.className} ${geistMono.className}`}
+      >
+        {/* Header */}
+        <div className="bg-white shadow-sm sticky top-0 z-10">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/gallery")}
+                className="p-2"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="font-serif text-lg font-semibold text-gray-800">
+                Upload Photos
+              </h1>
+              <div className="w-10" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="p-4">
-        <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload">Upload New</TabsTrigger>
-            <TabsTrigger value="my-photos">
-              My Photos ({userPhotos.length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="p-4">
+          <Tabs defaultValue="upload" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="upload">Upload New</TabsTrigger>
+              <TabsTrigger value="my-photos">
+                My Photos ({userPhotos.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="upload" className="space-y-6 mt-6">
-            {/* Upload Section */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Photo Category
-                    </label>
-                    <Select
-                      value={selectedCategory}
-                      onValueChange={setSelectedCategory}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => {
-                          const Icon = category.icon
-                          return (
-                            <SelectItem
-                              key={category.value}
-                              value={category.value}
-                            >
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
-                                {category.label}
-                              </div>
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <TabsContent value="upload" className="space-y-6 mt-6">
+              {/* Upload Section */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Photo Category
+                      </label>
+                      <Select
+                        value={selectedCategory}
+                        onValueChange={setSelectedCategory}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => {
+                            const Icon = category.icon
+                            return (
+                              <SelectItem
+                                key={category.value}
+                                value={category.value}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Icon className="h-4 w-4" />
+                                  {category.label}
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="photo-upload"
-                      disabled={uploading}
-                    />
-                    <label
-                      htmlFor="photo-upload"
-                      className="cursor-pointer flex flex-col items-center gap-3"
-                    >
-                      {uploading ? (
-                        <>
-                          <p className="text-lg font-medium text-gray-700 mb-2">
-                            Uploading… {uploadProgress}%
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="photo-upload"
+                        disabled={uploading}
+                      />
+                      <label
+                        htmlFor="photo-upload"
+                        className="cursor-pointer flex flex-col items-center gap-3"
+                      >
+                        {uploading ? (
+                          <>
+                            <p className="text-lg font-medium text-gray-700 mb-2">
+                              Uploading… {uploadProgress}%
+                            </p>
+                            <div className="w-full h-2 bg-gray-200 rounded">
+                              <div
+                                className="h-full bg-rose-600 rounded transition-all"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          </>
+                        ) : uploadSuccess ? (
+                          <Check className="h-8 w-8 text-green-600" />
+                        ) : (
+                          <Plus className="h-8 w-8 text-gray-400" />
+                        )}
+                        <div>
+                          <p className="text-lg font-medium text-gray-700">
+                            {uploading
+                              ? "Uploading..."
+                              : uploadSuccess
+                              ? "Upload Complete!"
+                              : "Add Photos"}
                           </p>
-                          <div className="w-full h-2 bg-gray-200 rounded">
-                            <div
-                              className="h-full bg-rose-600 rounded transition-all"
-                              style={{ width: `${uploadProgress}%` }}
-                            />
-                          </div>
-                        </>
-                      ) : uploadSuccess ? (
-                        <Check className="h-8 w-8 text-green-600" />
-                      ) : (
-                        <Plus className="h-8 w-8 text-gray-400" />
-                      )}
-                      <div>
-                        <p className="text-lg font-medium text-gray-700">
-                          {uploading
-                            ? "Uploading..."
-                            : uploadSuccess
-                            ? "Upload Complete!"
-                            : "Add Photos"}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {uploading
-                            ? "Please wait"
-                            : "Tap to select multiple photos"}
-                        </p>
-                      </div>
-                    </label>
+                          <p className="text-sm text-gray-500">
+                            {uploading
+                              ? "Please wait"
+                              : "Tap to select multiple photos"}
+                          </p>
+                        </div>
+                      </label>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Quick Stats */}
-            <div className="bg-rose-50 rounded-lg p-4">
-              <p className="text-center text-gray-700">
-                <span className="font-semibold text-rose-700">{userName}</span>,
-                you've shared{" "}
-                <span className="font-semibold">{userPhotos.length}</span>{" "}
-                photos
-              </p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="my-photos" className="mt-6">
-            {userPhotos.length === 0 ? (
-              <div className="text-center py-12">
-                <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No photos uploaded yet</p>
-                <p className="text-sm text-gray-400">
-                  Switch to Upload New to add photos
+              {/* Quick Stats */}
+              <div className="bg-rose-50 rounded-lg p-4">
+                <p className="text-center text-gray-700">
+                  <span className="font-semibold text-rose-700">
+                    {userName}
+                  </span>
+                  , you've shared{" "}
+                  <span className="font-semibold">{userPhotos.length}</span>{" "}
+                  photos
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {userPhotos.map((photo) => {
-                  return (
-                    <PhotoCard
-                      key={photo.id}
-                      photo={{
-                        ...photo,
-                        filePath: photo.fullSrc.split(
-                          "/storage/v1/object/public/wedding/"
-                        )[1],
-                      }}
-                      isOwner
-                      onUpdated={(u) =>
-                        setUserPhotos((prev) =>
-                          prev.map((p) => (p.id === u.id ? u : p))
-                        )
-                      }
-                      onDeleted={(id) =>
-                        setUserPhotos((prev) => prev.filter((p) => p.id !== id))
-                      }
-                    />
-                  )
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+
+            <TabsContent value="my-photos" className="mt-6">
+              {userPhotos.length === 0 ? (
+                <div className="text-center py-12">
+                  <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No photos uploaded yet</p>
+                  <p className="text-sm text-gray-400">
+                    Switch to Upload New to add photos
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {userPhotos.map((photo) => {
+                    return (
+                      <PhotoCard
+                        key={photo.id}
+                        photo={{
+                          ...photo,
+                          filePath: photo.fullSrc.split(
+                            "/storage/v1/object/public/wedding/"
+                          )[1],
+                        }}
+                        isOwner
+                        onUpdated={(u) =>
+                          setUserPhotos((prev) =>
+                            prev.map((p) => (p.id === u.id ? u : p))
+                          )
+                        }
+                        onDeleted={(id) =>
+                          setUserPhotos((prev) =>
+                            prev.filter((p) => p.id !== id)
+                          )
+                        }
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

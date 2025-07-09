@@ -23,6 +23,7 @@ import {
   Users,
 } from "lucide-react"
 import { Geist, Geist_Mono } from "next/font/google"
+import Head from "next/head"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import useSWRInfinite from "swr/infinite"
@@ -171,110 +172,142 @@ export default function GalleryPage() {
   if (!userName) return null
 
   return (
-    <div
-      className={`min-h-screen bg-gray-50 ${geistSans.className} ${geistMono.className}`}
-    >
-      {/* ── Header ─────────────────────── */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => console.log("hi")}
-              className="p-2"
-            >
-              <FelineIcon className="h-5 w-5" />
-            </Button>
+    <>
+      <Head>
+        <title>Wedding Gallery - Alex & Sierra's Wedding</title>
+        <meta
+          name="description"
+          content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
+        />
+        <meta name="robots" content="noindex, nofollow" />
 
-            <h1 className="font-serif text-lg font-semibold text-gray-800">
-              Wedding Gallery
-            </h1>
+        {/* Page-specific Open Graph */}
+        <meta
+          property="og:title"
+          content="Wedding Gallery - Alex & Sierra's Wedding"
+        />
+        <meta
+          property="og:description"
+          content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
+        />
+        <meta property="og:image" content="/cover-photo.png" />
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/upload")}
-              className="p-2"
-            >
-              <Upload className="h-5 w-5" />
-            </Button>
-          </div>
+        {/* Page-specific Twitter */}
+        <meta
+          name="twitter:title"
+          content="Wedding Gallery - Alex & Sierra's Wedding"
+        />
+        <meta
+          name="twitter:description"
+          content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
+        />
+        <meta name="twitter:image" content="/cover-photo.png" />
+      </Head>
 
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <Select
-              value={selectedCat}
-              onValueChange={(v) => {
-                setSelectedCat(v as CategoryVal)
-                setSize(1)
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    <div className="flex items-center gap-2">
-                      <c.icon className="h-4 w-4" /> {c.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div
+        className={`min-h-screen bg-gray-50 ${geistSans.className} ${geistMono.className}`}
+      >
+        {/* ── Header ─────────────────────── */}
+        <div className="bg-white shadow-sm sticky top-0 z-10">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => console.log("hi")}
+                className="p-2"
+              >
+                <FelineIcon className="h-5 w-5 text-black" />
+              </Button>
+
+              <h1 className="font-serif text-lg font-semibold text-gray-800">
+                Wedding Gallery
+              </h1>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/upload")}
+                className="p-2"
+              >
+                <Upload className="h-5 w-5 text-black" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <Select
+                value={selectedCat}
+                onValueChange={(v) => {
+                  setSelectedCat(v as CategoryVal)
+                  setSize(1)
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <div className="flex items-center gap-2">
+                        <c.icon className="h-4 w-4" /> {c.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
+
+        {/* ── Welcome ─────────────────────── */}
+        <div className="px-4 py-4 bg-rose-50 border-b">
+          <p className="text-center text-gray-700">
+            Welcome,&nbsp;
+            <span className="font-semibold text-rose-700">{userName}</span>!
+            <br />
+            <span className="text-sm text-gray-600">
+              {photos.length} photo{photos.length === 1 ? "" : "s"} shared by
+              the wedding party
+            </span>
+          </p>
+        </div>
+
+        {/* ── Grid ────────────────────────── */}
+        <div className="p-4">
+          {photos.length === 0 && !isValidating ? (
+            <p className="text-center text-gray-500 pt-10">No photos yet</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {photos.map((ph) => {
+                return (
+                  <PhotoCard
+                    key={ph.id}
+                    photo={ph}
+                    isOwner={ph.uploader === userName}
+                    onUpdated={() => mutate()}
+                    onDeleted={() => mutate()}
+                  />
+                )
+              })}
+            </div>
+          )}
+
+          {/* Sentinel for infinite scroll */}
+          <div
+            ref={sentinel}
+            className={clsx("h-10", isValidating && "animate-pulse")}
+          />
+        </div>
+
+        {/* ── Floating Upload Button ──────── */}
+        <Button
+          onClick={() => router.push("/upload")}
+          className="bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-lg fixed bottom-6 right-6 h-16 w-16"
+        >
+          <Upload className="h-12 w-12 text-white" />
+        </Button>
       </div>
-
-      {/* ── Welcome ─────────────────────── */}
-      <div className="px-4 py-4 bg-rose-50 border-b">
-        <p className="text-center text-gray-700">
-          Welcome,&nbsp;
-          <span className="font-semibold text-rose-700">{userName}</span>!
-          <br />
-          <span className="text-sm text-gray-600">
-            {photos.length} photo{photos.length === 1 ? "" : "s"} shared by the
-            wedding party
-          </span>
-        </p>
-      </div>
-
-      {/* ── Grid ────────────────────────── */}
-      <div className="p-4">
-        {photos.length === 0 && !isValidating ? (
-          <p className="text-center text-gray-500 pt-10">No photos yet</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {photos.map((ph) => {
-              return (
-                <PhotoCard
-                  key={ph.id}
-                  photo={ph}
-                  isOwner={ph.uploader === userName}
-                  onUpdated={() => mutate()}
-                  onDeleted={() => mutate()}
-                />
-              )
-            })}
-          </div>
-        )}
-
-        {/* Sentinel for infinite scroll */}
-        <div
-          ref={sentinel}
-          className={clsx("h-10", isValidating && "animate-pulse")}
-        />
-      </div>
-
-      {/* ── Floating Upload Button ──────── */}
-      <Button
-        onClick={() => router.push("/upload")}
-        className="bg-rose-600 hover:bg-rose-700 text-white rounded-full p-4 shadow-lg fixed bottom-6 right-6"
-        size="lg"
-      >
-        <Upload className="h-6 w-6" />
-      </Button>
-    </div>
+    </>
   )
 }

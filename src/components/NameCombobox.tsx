@@ -1,4 +1,3 @@
-import { useSupabase } from "@/lib/hooks/useSupabase"
 import {
   Combobox,
   ComboboxButton,
@@ -8,43 +7,22 @@ import {
 } from "@headlessui/react"
 import clsx from "clsx"
 import { Check, ChevronsUpDown } from "lucide-react"
-import { useEffect, useState } from "react"
-
-const allNames = [
-  "Alex Godfrey",
-  "Steven Godfrey",
-  "Doris Godfrey",
-  "Henry Malarkey III",
-  "Brenda Malarkey",
-] as const
+import { useState } from "react"
 
 export default function NameCombobox({
   name,
   setName,
+  unclaimedNames,
+  loading,
+  setLoading,
 }: {
   name: string
   setName: (v: string) => void
+  unclaimedNames: string[]
+  loading: boolean
+  setLoading: (v: boolean) => void
 }) {
-  const { supabase } = useSupabase()
-
   const [query, setQuery] = useState("")
-  const [unclaimedNames, setUnclaimedNames] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const go = async () => {
-      setLoading(true)
-      const { data: claimedNames } = await supabase
-        .from("anon_name_map")
-        .select("name")
-      const claimed = new Set(claimedNames?.map((r) => r.name))
-      const unclaimed = allNames.filter((n) => !claimed.has(n))
-      setUnclaimedNames(unclaimed)
-      setLoading(false)
-    }
-
-    go()
-  }, [supabase])
 
   const filtered =
     query === ""
@@ -56,7 +34,10 @@ export default function NameCombobox({
   return (
     <Combobox
       value={name}
-      onChange={(value: string) => setName(value)}
+      onChange={(value: string | null) => {
+        setName(value ?? "")
+        setQuery(value ?? "") // never store null in state
+      }}
       onClose={() => setQuery("")}
       disabled={loading}
       __demoMode
@@ -70,9 +51,9 @@ export default function NameCombobox({
           )}
           placeholder="Type or select…"
           displayValue={(v: string) => v}
+          value={name || query}
           onChange={(e) => {
-            setQuery(e.target.value)
-            setName(e.target.value) // keep external state in sync
+            setQuery(e.target.value || "")
           }}
         />
 

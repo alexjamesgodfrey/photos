@@ -25,7 +25,13 @@ export function useUser(serverUser: User | null = null) {
 
       // get name from local storage
       const name = localStorage.getItem("userName")
+      const userId = sessionUser?.id
+
       if (name && sessionUser) {
+        const { error } = await supabase
+          .from("anon_name_map")
+          .upsert({ name, id: userId })
+        console.log(error)
         return {
           ...sessionUser,
           name,

@@ -1,152 +1,151 @@
-Doris Godfrey
-Alex Godfrey
-Emma McCarthy
-Scott DeSimone
-Amanda
-Henry Malarkey 4
-Matthew DeSimone
-Laurel Fulton
-Gretchen VanOrden 
-Anne Turberg
-Michael
-Michael 
-Taylor DeSimone 
-Deb Litman
-Stephen Schott
-Tye Flurie
-Kate Sommer
-Charles Mitz
-Jake DeSimone
-Charlie Malarkey 
-Uma
-Zane
-Lisa Campbell 
-Keli Hinnant
-Mohamed Hussien
-Harvey Bell
-Joan Behm
-Logan Studley
-Victoria Crawford
-Susan Janeczek
-Susan Bennett
-Stacie Klossner
-Joseph Hernandez
-Michelle Carlson 
-Brenda Malarkey
-Sara Godfrey
-Gretchen VanOrden 
-Kimberly Harrington
-Vincent kinduelo
-Graham Carson
-Jasmine Apicella
-Jerome Morris
-Jennifer Baker
-Tim Apicella
-Andrea Jackson
-Lukas Seklir
-Mauricio Fuhrman
-Moe Zaib
-Sahib Manjal
-Nathan Vogt
-Jariful Chowdhury
-Liz Godfrey
-Keli Curran
-Chris Apicella
-Reese Goldberg
-Peter Gluck
-Bobbie 
-Ignazio Perez Romero
-Grant Rinehimer
-Isabella Cagno
-Cindy Schoberg
-Eric Anderson 
-Quinn Elliott
-Evie Linantud 
-Frank Malarkey
-Rick Walczak
-Kerry Sweatman
-Juan Carlos Caballero-Pérez 
-Paul Smitelli
-Sarah Harrington
-Angeles Cruz
-Vincent kinduelo 
-Xander Apicella
-Max T Gluck
-Charlize Trostinsky
-Michael (Poppy) Apicella
-Katie Apicella
-Carla Akl
-Tommy Sauer
-Julio Leanez
-Maya Sapozhnikov
-Camilo Ortiz
-Kyle Chen
-Connor Hanson
-John Kowalczyk
-Mouad Damir
-John
-Dylan Beegal
-Steven Godfrey
-Sierra Apicella
-Tina DeSimone
-David
-Kimberly Malarkey
-Kevin Giunta
-Ken Yonda 
-Steve Turberg
-Melissa
-Anna
-Joseph DeFelice 
-Allen Litman
-Julia Schott
-Heather Flurie
-Kevin Jones
-Kathie Malarkey
-Mahesh
-Kayla
-Riana Villacampa
-Don Behm
-Oliver Crawford 
-Mark Janeczek
-Wally Saucke
-Roger Klossner
-Gabriella Canale
-Nat Carlson
-Grandpa Henry Malarkey
-Ken Yonda 
-Jim DeMarco
-Emma Brady
-Erik Baker
-Marta Apicella
-Edwsrds Stacy Jackson 
-Martin Janzen
-Ivan Kwong
-Veronica Jurrius
-Tasluba Bushra
-Alan Godfrey
-Krissy Reiss
-Max Gluck
-Peter
-Natalia Pope
-Martin Salantay
-Lando Norris
-Marygrace Anderson
-Kamal Patel
-Eli Littlefield 
-Lisa (Frank Malarkey's Date)
-Kathy Petroff
-Kevin Sweatman
-Nicolette Morell
-Peter J Gluck
-Noah Martinez
-Michael Akl
-Mitchell Burrall
-Emma Conklin
-Henry Malarkey 5
-Nithin
-Brendan Klossner
-Brandon VanOrden
-TBD Gluck ( or plus one)
-Ryan Malarkey 
-Ajay
-Christin Napierkowski
+"Doris Godfrey",
+"Alex Godfrey",
+"Emma McCarthy",
+"Scott DeSimone",
+"Amanda",
+"Henry Malarkey 4",
+"Matthew DeSimone",
+"Laurel Fulton",
+"Gretchen VanOrden ",
+"Anne Turberg",
+"Michael",
+"Michael ",
+"Taylor DeSimone ",
+"Deb Litman",
+"Stephen Schott",
+"Tye Flurie",
+"Kate Sommer",
+"Charles Mitz",
+"Jake DeSimone",
+"Charlie Malarkey ",
+"Uma",
+"Zane",
+"Lisa Campbell ",
+"Keli Hinnant",
+"Mohamed Hussien",
+"Harvey Bell",
+"Joan Behm",
+"Logan Studley",
+"Victoria Crawford",
+"Susan Janeczek",
+"Susan Bennett",
+"Stacie Klossner",
+"Joseph Hernandez",
+"Michelle Carlson ",
+"Brenda Malarkey",
+"Sara Godfrey",
+"Kimberly Harrington",
+"Vincent kinduelo",
+"Graham Carson",
+"Jasmine Apicella",
+"Jerome Morris",
+"Jennifer Baker",
+"Tim Apicella",
+"Andrea Jackson",
+"Lukas Seklir",
+"Mauricio Fuhrman",
+"Moe Zaib",
+"Sahib Manjal",
+"Nathan Vogt",
+"Jariful Chowdhury",
+"Liz Godfrey",
+"Keli Curran",
+"Chris Apicella",
+"Reese Goldberg",
+"Peter Gluck",
+"Bobbie ",
+"Ignazio Perez Romero",
+"Grant Rinehimer",
+"Isabella Cagno",
+"Cindy Schoberg",
+"Eric Anderson ",
+"Quinn Elliott",
+"Evie Linantud ",
+"Frank Malarkey",
+"Rick Walczak",
+"Kerry Sweatman",
+"Juan Carlos Caballero-Pérez ",
+"Paul Smitelli",
+"Sarah Harrington",
+"Angeles Cruz",
+"Vincent kinduelo ",
+"Xander Apicella",
+"Max T Gluck",
+"Charlize Trostinsky",
+"Michael (Poppy) Apicella",
+"Katie Apicella",
+"Carla Akl",
+"Tommy Sauer",
+"Julio Leanez",
+"Maya Sapozhnikov",
+"Camilo Ortiz",
+"Kyle Chen",
+"Connor Hanson",
+"John Kowalczyk",
+"Mouad Damir",
+"John",
+"Dylan Beegal",
+"Steven Godfrey",
+"Sierra Apicella",
+"Tina DeSimone",
+"David",
+"Kimberly Malarkey",
+"Kevin Giunta",
+"Ken Yonda ",
+"Steve Turberg",
+"Melissa",
+"Anna",
+"Joseph DeFelice ",
+"Allen Litman",
+"Julia Schott",
+"Heather Flurie",
+"Kevin Jones",
+"Kathie Malarkey",
+"Mahesh",
+"Kayla",
+"Riana Villacampa",
+"Don Behm",
+"Oliver Crawford ",
+"Mark Janeczek",
+"Wally Saucke",
+"Roger Klossner",
+"Gabriella Canale",
+"Nat Carlson",
+"Grandpa Henry Malarkey",
+"Ken Yonda ",
+"Jim DeMarco",
+"Emma Brady",
+"Erik Baker",
+"Marta Apicella",
+"Edwsrds Stacy Jackson ",
+"Martin Janzen",
+"Ivan Kwong",
+"Veronica Jurrius",
+"Tasluba Bushra",
+"Alan Godfrey",
+"Krissy Reiss",
+"Max Gluck",
+"Peter",
+"Natalia Pope",
+"Martin Salantay",
+"Lando Norris",
+"Marygrace Anderson",
+"Kamal Patel",
+"Eli Littlefield ",
+"Lisa (Frank Malarkey's Date)",
+"Kathy Petroff",
+"Kevin Sweatman",
+"Nicolette Morell",
+"Peter J Gluck",
+"Noah Martinez",
+"Michael Akl",
+"Mitchell Burrall",
+"Emma Conklin",
+"Henry Malarkey 5",
+"Nithin",
+"Brendan Klossner",
+"Brandon VanOrden",
+"TBD Gluck ( or plus one)",
+"Ryan Malarkey ",
+"Ajay",
+"Christin Napierkowski",

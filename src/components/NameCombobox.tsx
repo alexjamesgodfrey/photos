@@ -40,7 +40,6 @@ export default function NameCombobox({
       }}
       onClose={() => setQuery("")}
       disabled={loading}
-      __demoMode
     >
       <div className="relative">
         {/* input ----------------------------------------------------------- */}

@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSupabase } from "@/lib/hooks/useSupabase"
 import { useUser } from "@/lib/hooks/useUser"
-import { Camera, CatIcon, Loader2 } from "lucide-react" // ⬅️ spinner
+import { Camera, Loader2 } from "lucide-react" // ⬅️ spinner
 import { Geist, Geist_Mono } from "next/font/google"
 import Head from "next/head"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -16,11 +17,153 @@ const geistMono = Geist_Mono({
 })
 
 const allNames = [
-  "Alex Godfrey",
-  "Steven Godfrey",
   "Doris Godfrey",
-  "Henry Malarkey III",
+  "Alex Godfrey",
+  "Emma McCarthy",
+  "Scott DeSimone",
+  "Amanda Graham",
+  "Henry Malarkey 4",
+  "Matthew DeSimone",
+  "Laurel Fulton",
+  "Anne Turberg",
+  "Michael Putney",
+  "Taylor DeSimone ",
+  "Deb Litman",
+  "Stephen Schott",
+  "Tye Flurie",
+  "Kate Sommer",
+  "Charles Mitz",
+  "Jake DeSimone",
+  "Charlie Malarkey ",
+  "Uma Vejendla",
+  "Zane Neelin",
+  "Lisa Campbell ",
+  "Keli Hinnant",
+  "Mohamed Hussien",
+  "Harvey Bell",
+  "Joan Behm",
+  "Logan Studley",
+  "Victoria Crawford",
+  "Susan Janeczek",
+  "Susan Bennett",
+  "Stacie Klossner",
+  "Joseph Hernandez",
+  "Michelle Carlson ",
   "Brenda Malarkey",
+  "Sara Godfrey",
+  "Gretchen VanOrden",
+  "Kimberly Harrington",
+  "Vincent kinduelo",
+  "Graham Carson",
+  "Jasmine Apicella",
+  "Jerome Morris",
+  "Jennifer Baker",
+  "Tim Apicella",
+  "Andrea Jackson",
+  "Lukas Seklir",
+  "Mauricio Fuhrman",
+  "Moe Zaib",
+  "Sahib Manjal",
+  "Nathan Vogt",
+  "Jariful Chowdhury",
+  "Liz Godfrey",
+  "Keli Curran",
+  "Chris Apicella",
+  "Reese Goldberg",
+  "Peter Apicella",
+  "Ms. Bobbie Gluck",
+  "Ignazio Perez Romero",
+  "Grant Rinehimer",
+  "Isabella Cagno",
+  "Cindy Schoberg",
+  "Eric Anderson ",
+  "Quinn Elliott",
+  "Evie Linantud ",
+  "Frank Malarkey",
+  "Rick Walczak",
+  "Kerry Sweatman",
+  "Juan Carlos Caballero-Pérez ",
+  "Paul Smitelli",
+  "Sarah Harrington",
+  "Angeles Cruz",
+  "Vincent kinduelo ",
+  "Xander Apicella",
+  "Max T Gluck",
+  "Charlize Trostinsky",
+  "Michael (Poppy) Apicella",
+  "Katie Apicella",
+  "Carla Akl",
+  "Tommy Sauer",
+  "Julio Leanez",
+  "Maya Sapozhnikov",
+  "Camilo Ortiz",
+  "Kyle Chen",
+  "Connor Hanson",
+  "John Kowalczyk",
+  "Mouad Damir",
+  "Dylan Beegal",
+  "Steven Godfrey",
+  "Sierra Apicella",
+  "Tina DeSimone",
+  "David Graham",
+  "Kimberly Malarkey",
+  "Kevin Giunta",
+  "Steve Turberg",
+  "Melissa",
+  "Anna",
+  "Joseph DeFelice ",
+  "Allen Litman",
+  "Julia Schott",
+  "Heather Flurie",
+  "Kevin Jones",
+  "Kathie Malarkey",
+  "Mahesh",
+  "Kayla",
+  "Riana Villacampa",
+  "Don Behm",
+  "Oliver Crawford ",
+  "Mark Janeczek",
+  "Wally Saucke",
+  "Roger Klossner",
+  "Gabriella Canale",
+  "Nat Carlson",
+  "Grandpa Henry Malarkey",
+  "Ken Yonda",
+  "Jim DeMarco",
+  "Emma Brady",
+  "Erik Baker",
+  "Marta Apicella",
+  "Edwsrds Stacy Jackson ",
+  "Martin Janzen",
+  "Ivan Kwong",
+  "Veronica Jurrius",
+  "Tasluba Bushra",
+  "Alan Godfrey",
+  "Krissy Reiss",
+  "Max Gluck",
+  "Natalia Pope",
+  "Martin Salantay",
+  "Lando Norris",
+  "Marygrace Anderson",
+  "Kamal Patel",
+  "Eli Littlefield ",
+  "Lisa (Frank Malarkey's Date)",
+  "Kathy Petroff",
+  "Kevin Sweatman",
+  "Nicolette Morell",
+  "Peter J Gluck",
+  "Noah Martinez",
+  "Michael Akl",
+  "Mitchell Burrall",
+  "Emma Conklin",
+  "Henry Malarkey 5",
+  "Nithin Vejendla",
+  "Brendan Klossner",
+  "Brandon VanOrden",
+  "TBD Gluck ( or plus one)",
+  "Ryan Malarkey ",
+  "Ajay Vejendla",
+  "Christin Napierkowski",
 ] as const
 
 export default function HomePage() {
@@ -101,10 +244,16 @@ export default function HomePage() {
         className={`min-h-screen bg-gradient-to-br from-rose-50 to-pink-50 p-4 flex items-center justify-center ${geistSans.className} ${geistMono.className}`}
       >
         <Card className="w-full max-w-md mx-auto shadow-lg">
-          <CardHeader className="text-center pb-6">
+          <CardHeader className="text-center pb-2">
             <div className="flex justify-center mb-4">
-              <div className="bg-rose-100 p-3 rounded-full">
-                <CatIcon className="h-8 w-8 text-rose-600" />
+              <div className="bg-rose-100 rounded-full">
+                <Image
+                  src="/portait.png"
+                  alt="Cat"
+                  width={128}
+                  height={128}
+                  className="h-20 w-20 text-rose-600 rounded-full"
+                />
               </div>
             </div>
             <CardTitle className="text-2xl font-serif text-gray-800">

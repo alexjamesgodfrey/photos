@@ -234,7 +234,7 @@ export default function GalleryPage() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-black">
               <Filter className="h-4 w-4 text-gray-500" />
               <Select
                 value={selectedCat}

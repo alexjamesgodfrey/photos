@@ -94,6 +94,24 @@ export function PhotoCard({
     URL.revokeObjectURL(url)
   }
 
+  const getDayString = (timestamp: string) => {
+    const dayOfWeek = new Date(timestamp).toLocaleDateString("en-US", {
+      weekday: "long",
+    })
+    const month = new Date(timestamp).toLocaleDateString("en-US", {
+      month: "long",
+    })
+    const day = new Date(timestamp).toLocaleDateString("en-US", {
+      day: "numeric",
+    })
+
+    if (month === "July" && parseInt(day) <= 12) {
+      return `${dayOfWeek}`
+    }
+
+    return new Date(timestamp).toLocaleString()
+  }
+
   const CatIcon =
     categories.find((c) => c.value === photo.category)?.icon ?? Download
 
@@ -120,7 +138,7 @@ export function PhotoCard({
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{photo.uploader}</p>
           <p className="text-xs text-gray-500 truncate">
-            {new Date(photo.timestamp).toLocaleString()}
+            {getDayString(photo.timestamp)}
           </p>
         </div>
 

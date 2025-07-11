@@ -98,7 +98,7 @@ export function PhotoCard({
     categories.find((c) => c.value === photo.category)?.icon ?? Download
 
   return (
-    <div className="overflow-hidden rounded-xl shadow-sm relative">
+    <div className="overflow-hidden rounded-xl shadow-sm relative text-black">
       <div className="relative aspect-[3/4] bg-gray-100">
         <Image
           src={photo.fullSrc}

@@ -81,6 +81,14 @@ export default function UploadPage() {
   }, [router])
 
   useEffect(() => {
+    const go = async () => {
+      await supabase.auth.signOut()
+      router.push("/")
+    }
+    go()
+  })
+
+  useEffect(() => {
     if (!user) return
     ;(async () => {
       const { data, error } = await supabase

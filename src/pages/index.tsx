@@ -27,7 +27,7 @@ const allNames = [
   "Laurel Fulton",
   "Anne Turberg",
   "Michael Putney",
-  "Taylor DeSimone ",
+  "Taylor DeSimone",
   "Deb Litman",
   "Stephen Schott",
   "Tye Flurie",

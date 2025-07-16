@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useSupabase } from "@/lib/hooks/useSupabase"
+import { weddingUploadsTotal } from "@/lib/supabase/rpc/weddingUploadsTotal"
 import { WeddingUploads } from "@/types/supabaseAlias"
 import { RealtimePostgresInsertPayload } from "@supabase/supabase-js"
 import clsx from "clsx"
@@ -60,6 +61,18 @@ export default function GalleryPage() {
   const router = useRouter()
   const [userName, setUserName] = useState("")
   const [selectedCat, setSelectedCat] = useState<CategoryVal>("all")
+  const [photosCount, setPhotosCount] = useState(0)
+
+  useEffect(() => {
+    const go = async () => {
+      const count = await weddingUploadsTotal(
+        supabase,
+        selectedCat !== "all" ? selectedCat : undefined
+      )
+      setPhotosCount(count)
+    }
+    go()
+  }, [supabase, selectedCat])
 
   /* ---------- 1.  Auth guard & user name ---------- */
   useEffect(() => {
@@ -125,17 +138,36 @@ export default function GalleryPage() {
 
   /* ---------- 4.  Infinite scroll sentinel ---------- */
   const sentinel = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
-    if (!sentinel.current) return
+    const el = sentinel.current
+    if (!el) return
+
+    let loading = false
+
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) setSize((s) => s + 1)
+        const entry = entries[0]
+        if (entry.isIntersecting && !loading) {
+          loading = true
+          setSize((s) => s + 1)
+          // allow another load on next layout frame
+          // (microtask so we don't block batched state)
+          queueMicrotask(() => {
+            loading = false
+          })
+        }
       },
-      { rootMargin: "100px" }
+      {
+        root: null,
+        rootMargin: "200px 0px 200px 0px", // prefetch above/below
+        threshold: 0,
+      }
     )
-    io.observe(sentinel.current)
+
+    io.observe(el)
     return () => io.disconnect()
-  }, [setSize])
+  }, [setSize, selectedCat, photos.length]) // <-- reattach when list grows or filter changes
 
   /* ---------- 5.  Realtime new-photo subscription ---------- */
   useEffect(() => {
@@ -267,8 +299,8 @@ export default function GalleryPage() {
             <span className="font-semibold text-rose-700">{userName}</span>!
             <br />
             <span className="text-sm text-gray-600">
-              {photos.length} photo{photos.length === 1 ? "" : "s"} shared by
-              the wedding party
+              {photosCount} {selectedCat !== "all" ? selectedCat : ""} photo
+              {photosCount === 1 ? "" : "s"} shared by the wedding party
             </span>
           </p>
         </div>

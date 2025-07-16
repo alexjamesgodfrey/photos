@@ -683,6 +683,10 @@ export type Database = {
         Args: { _customer: string }
         Returns: unknown[]
       }
+      wedding_uploads_total: {
+        Args: { _category?: string }
+        Returns: number
+      }
     }
     Enums: {
       BiomarkerName:

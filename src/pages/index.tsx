@@ -164,7 +164,7 @@ const allNames = [
   "Ryan Malarkey ",
   "Ajay Vejendla",
   "Christin Napierkowski",
-] as const
+]
 
 export default function HomePage() {
   const { user, refetchUser } = useUser()
@@ -173,7 +173,6 @@ export default function HomePage() {
 
   const [name, setName] = useState("")
   const [loading, setLoading] = useState(false) // ⬅️ NEW
-  const [unclaimedNames, setUnclaimedNames] = useState<string[]>([])
 
   /* ---------- sign-in ---------- */
   const handleContinue = async () => {
@@ -195,23 +194,6 @@ export default function HomePage() {
   useEffect(() => {
     if (user) router.push("/gallery")
   }, [user, router])
-
-  useEffect(() => {
-    const go = async () => {
-      setLoading(true)
-      const { data: claimedNames } = await supabase
-        .from("anon_name_map")
-        .select("name")
-      const claimed = new Set(claimedNames?.map((r) => r.name))
-      const unclaimed = allNames.filter((n) => !claimed.has(n))
-      setUnclaimedNames(unclaimed)
-      setLoading(false)
-    }
-
-    go()
-  }, [supabase])
-
-  const isSelectable = unclaimedNames.includes(name)
 
   return (
     <>
@@ -271,16 +253,14 @@ export default function HomePage() {
             <NameCombobox
               name={name}
               setName={setName}
-              unclaimedNames={unclaimedNames}
+              unclaimedNames={allNames}
               loading={loading}
               setLoading={setLoading}
             />
 
             <Button
               onClick={handleContinue}
-              disabled={
-                loading || !isSelectable || (name ? !name.trim() : false)
-              }
+              disabled={loading || (name ? !name.trim() : false)}
               className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 text-lg flex items-center justify-center gap-2"
             >
               {loading ? (

@@ -32,6 +32,7 @@ import { useEffect, useState } from "react"
 import { v4 as newUUID } from "uuid"
 
 const categories = [
+  { value: "professional", label: "Professional", icon: Camera },
   { value: "ceremony", label: "Ceremony", icon: Heart },
   { value: "reception", label: "Reception", icon: Cake },
   { value: "candid", label: "Candid", icon: Users },

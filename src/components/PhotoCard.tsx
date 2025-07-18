@@ -125,6 +125,7 @@ export function PhotoCard({
           sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
           className="object-cover"
           placeholder="empty"
+          quality={100}
         />
         {/* badge */}
         <div className="absolute top-2 right-2">

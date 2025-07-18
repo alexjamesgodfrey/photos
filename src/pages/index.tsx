@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 })
 
 const allNames = [
+  "@rebeccaoharaphotography",
   "Doris Godfrey",
   "Alex Godfrey",
   "Emma McCarthy",

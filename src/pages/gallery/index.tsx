@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useSupabase } from "@/lib/hooks/useSupabase"
-import { weddingUploadsTotal } from "@/lib/supabase/rpc/weddingUploadsTotal"
+import { weddingUniqueDisplayNames } from "@/lib/supabase/rpc/weddingUniqueDisplayNames"
 import { WeddingUploads } from "@/types/supabaseAlias"
 import { RealtimePostgresInsertPayload } from "@supabase/supabase-js"
 import clsx from "clsx"
@@ -21,6 +21,7 @@ import {
   Filter,
   Heart,
   Upload,
+  User as UserIcon,
   Users,
 } from "lucide-react"
 import { Geist, Geist_Mono } from "next/font/google"
@@ -60,20 +61,13 @@ interface Photo {
 export default function GalleryPage() {
   const { supabase } = useSupabase()
   const router = useRouter()
+
   const [userName, setUserName] = useState("")
   const [selectedCat, setSelectedCat] = useState<CategoryVal>("all")
+  const [selectedUploader, setSelectedUploader] = useState<string>("all")
   const [photosCount, setPhotosCount] = useState(0)
-
-  useEffect(() => {
-    const go = async () => {
-      const count = await weddingUploadsTotal(
-        supabase,
-        selectedCat !== "all" ? selectedCat : undefined
-      )
-      setPhotosCount(count)
-    }
-    go()
-  }, [supabase, selectedCat])
+  const [uploaders, setUploaders] = useState<string[]>([])
+  const [loadingUploaders, setLoadingUploaders] = useState(false)
 
   /* ---------- 1.  Auth guard & user name ---------- */
   useEffect(() => {
@@ -85,13 +79,62 @@ export default function GalleryPage() {
     setUserName(name)
   }, [router])
 
-  /* ---------- 2.  SWR infinite ---------- */
-  const getKey = (index: number, prev: WeddingUploads[] | null) => {
-    if (prev && !prev.length) return null // reached end
-    return { index, cat: selectedCat }
+  /* ---------- 2.  Fetch unique display names ---------- */
+  useEffect(() => {
+    let active = true
+    setLoadingUploaders(true)
+    weddingUniqueDisplayNames(supabase)
+      .then((names) => {
+        if (!active) return
+        setUploaders(names)
+      })
+      .finally(() => active && setLoadingUploaders(false))
+    return () => {
+      active = false
+    }
+  }, [supabase])
+
+  /* ---------- 3.  Count matching photos (category + uploader) ---------- */
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      // If you implemented the enhanced RPC use that here; otherwise head count:
+      let query = supabase
+        .from("wedding_uploads")
+        .select("*", { count: "exact", head: true })
+
+      if (selectedCat !== "all") query = query.eq("category", selectedCat)
+      if (selectedUploader !== "all") {
+        query = query.eq("display_name", selectedUploader)
+      }
+
+      const { count, error } = await query
+      if (error) {
+        console.error("Count error", error)
+        return
+      }
+      if (!cancelled) setPhotosCount(count || 0)
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, selectedCat, selectedUploader])
+
+  /* ---------- 4.  SWR infinite (key includes both filters) ---------- */
+  const getKey = (
+    index: number,
+    prev: WeddingUploads[] | null
+  ): { index: number; cat: CategoryVal; uploader: string } | null => {
+    if (prev && !prev.length) return null
+    return { index, cat: selectedCat, uploader: selectedUploader }
   }
 
-  const fetcher = async (key: { index: number; cat: CategoryVal }) => {
+  const fetcher = async (key: {
+    index: number
+    cat: CategoryVal
+    uploader: string
+  }) => {
     const from = key.index * PAGE_SIZE
     const to = from + PAGE_SIZE - 1
 
@@ -102,6 +145,7 @@ export default function GalleryPage() {
       .range(from, to)
 
     if (key.cat !== "all") q = q.eq("category", key.cat)
+    if (key.uploader !== "all") q = q.eq("display_name", key.uploader)
 
     const { data, error } = await q
     if (error) throw error
@@ -112,7 +156,7 @@ export default function GalleryPage() {
     WeddingUploads[]
   >(getKey, fetcher, { revalidateOnFocus: false })
 
-  /* ---------- 3.  Map DB rows to UI objects ---------- */
+  /* ---------- 5.  Map DB rows to UI objects ---------- */
   const mapRow = useCallback(
     (row: WeddingUploads): Photo => {
       const pub = supabase.storage.from("wedding")
@@ -137,7 +181,7 @@ export default function GalleryPage() {
 
   const photos: Photo[] = data ? data.flat().map(mapRow) : []
 
-  /* ---------- 4.  Infinite scroll sentinel ---------- */
+  /* ---------- 6.  Infinite scroll sentinel ---------- */
   const sentinel = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -152,8 +196,6 @@ export default function GalleryPage() {
         if (entry.isIntersecting && !loading) {
           loading = true
           setSize((s) => s + 1)
-          // allow another load on next layout frame
-          // (microtask so we don't block batched state)
           queueMicrotask(() => {
             loading = false
           })
@@ -161,16 +203,16 @@ export default function GalleryPage() {
       },
       {
         root: null,
-        rootMargin: "200px 0px 200px 0px", // prefetch above/below
+        rootMargin: "200px 0px 200px 0px",
         threshold: 0,
       }
     )
 
     io.observe(el)
     return () => io.disconnect()
-  }, [setSize, selectedCat, photos.length]) // <-- reattach when list grows or filter changes
+  }, [setSize, selectedCat, selectedUploader, photos.length])
 
-  /* ---------- 5.  Realtime new-photo subscription ---------- */
+  /* ---------- 7.  Realtime new-photo subscription (respect filters) ---------- */
   useEffect(() => {
     const channel = supabase
       .channel("rt-uploads")
@@ -178,29 +220,39 @@ export default function GalleryPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "wedding_uploads" },
         (payload: RealtimePostgresInsertPayload<WeddingUploads>) => {
-          const newRow = payload.new // ← *typed* DbRow
+          const newRow = payload.new
+          // Filter gating:
+          if (
+            (selectedCat !== "all" && newRow.category !== selectedCat) ||
+            (selectedUploader !== "all" &&
+              newRow.display_name !== selectedUploader)
+          ) {
+            return
+          }
 
-          mutate<WeddingUploads[][]>(
-            (pages) => {
-              if (!pages) return [[newRow]] // cache empty → first page
-              return [
-                [newRow, ...pages[0]], // prepend immutably
-                ...pages.slice(1),
-              ]
-            },
-            false // don’t revalidate network
-          )
+          mutate<WeddingUploads[][]>((pages) => {
+            if (!pages) return [[newRow]]
+            return [[newRow, ...pages[0]], ...pages.slice(1)]
+          }, false)
+          // Increment count locally (optimistic)
+          setPhotosCount((c) => c + 1)
         }
       )
       .subscribe()
+
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [mutate, selectedCat, supabase])
+  }, [mutate, supabase, selectedCat, selectedUploader])
 
-  /* ---------- 6.  Helpers ---------- */
+  /* ---------- 8.  Helpers ---------- */
   const CatIcon = (cat: CategoryVal) =>
     categories.find((c) => c.value === cat)?.icon ?? Camera
+
+  // Reset pagination when filter changes (SWR key ensures cache separation, but we cap size)
+  useEffect(() => {
+    setSize(1)
+  }, [selectedCat, selectedUploader, setSize])
 
   if (!userName) return null
 
@@ -213,8 +265,6 @@ export default function GalleryPage() {
           content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
         />
         <meta name="robots" content="noindex, nofollow" />
-
-        {/* Page-specific Open Graph */}
         <meta
           property="og:title"
           content="Wedding Gallery - Alex & Sierra's Wedding"
@@ -224,8 +274,6 @@ export default function GalleryPage() {
           content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
         />
         <meta property="og:image" content="/cover-photo.png" />
-
-        {/* Page-specific Twitter */}
         <meta
           name="twitter:title"
           content="Wedding Gallery - Alex & Sierra's Wedding"
@@ -267,41 +315,73 @@ export default function GalleryPage() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 text-black">
-              <Filter className="h-4 w-4 text-gray-500" />
-              <Select
-                value={selectedCat}
-                onValueChange={(v) => {
-                  setSelectedCat(v as CategoryVal)
-                  setSize(1)
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Category Filter */}
+              <div className="flex items-center gap-2 flex-1">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <Select
+                  value={selectedCat}
+                  onValueChange={(v) => setSelectedCat(v as CategoryVal)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        <div className="flex items-center gap-2">
+                          <c.icon className="h-4 w-4" /> {c.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Uploader Filter */}
+              <div className="flex items-center gap-2 flex-1">
+                <UserIcon className="h-4 w-4 text-gray-500" />
+                <Select
+                  value={selectedUploader}
+                  onValueChange={(v) => setSelectedUploader(v)}
+                  disabled={loadingUploaders}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Uploader" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
                       <div className="flex items-center gap-2">
-                        <c.icon className="h-4 w-4" /> {c.label}
+                        <UserIcon className="h-4 w-4" /> All Uploaders
                       </div>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {uploaders.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Welcome ─────────────────────── */}
+        {/* ── Welcome / Count ─────────────────────── */}
         <div className="px-4 py-4 bg-rose-50 border-b">
           <p className="text-center text-gray-700">
             Welcome,&nbsp;
             <span className="font-semibold text-rose-700">{userName}</span>!
             <br />
             <span className="text-sm text-gray-600">
-              {photosCount} {selectedCat !== "all" ? selectedCat : ""} photo
-              {photosCount === 1 ? "" : "s"} shared by the wedding party
+              {photosCount} {selectedCat !== "all" ? `${selectedCat} ` : ""}
+              photo{photosCount === 1 ? "" : "s"}
+              {selectedUploader !== "all" && (
+                <>
+                  {" "}
+                  by <span className="font-medium">{selectedUploader}</span>
+                </>
+              )}
             </span>
           </p>
         </div>
@@ -312,21 +392,22 @@ export default function GalleryPage() {
             <p className="text-center text-gray-500 pt-10">No photos yet</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {photos.map((ph) => {
-                return (
-                  <PhotoCard
-                    key={ph.id}
-                    photo={ph}
-                    isOwner={ph.uploader === userName}
-                    onUpdated={() => mutate()}
-                    onDeleted={() => mutate()}
-                  />
-                )
-              })}
+              {photos.map((ph) => (
+                <PhotoCard
+                  key={ph.id}
+                  photo={ph}
+                  isOwner={ph.uploader === userName}
+                  onUpdated={() => mutate()}
+                  onDeleted={() => {
+                    mutate()
+                    setPhotosCount((c) => Math.max(0, c - 1))
+                  }}
+                />
+              ))}
             </div>
           )}
 
-          {/* Sentinel for infinite scroll */}
+          {/* Sentinel */}
           <div
             ref={sentinel}
             className={clsx("h-10", isValidating && "animate-pulse")}

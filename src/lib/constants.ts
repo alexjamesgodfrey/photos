@@ -1,7 +1,7 @@
-import { Cake, Camera, Heart, Users } from "lucide-react"
+import { Cake, Camera, GlobeIcon, Heart, Users } from "lucide-react"
 
 export const categories = [
-  { value: "all", label: "All Photos", icon: Camera },
+  { value: "all", label: "All Photos", icon: GlobeIcon },
   { value: "professional", label: "Professional", icon: Camera },
   { value: "ceremony", label: "Ceremony", icon: Heart },
   { value: "reception", label: "Reception", icon: Cake },

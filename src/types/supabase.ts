@@ -542,6 +542,137 @@ export type Database = {
         }
         Relationships: []
       }
+      sierra_collection: {
+        Row: {
+          cover_img_path: string | null
+          created_at: string
+          description: string
+          id: string
+          pretty_id: string
+          priority: number
+          show: boolean
+          title: string
+        }
+        Insert: {
+          cover_img_path?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          pretty_id: string
+          priority?: number
+          show?: boolean
+          title: string
+        }
+        Update: {
+          cover_img_path?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          pretty_id?: string
+          priority?: number
+          show?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
+      sierra_shop_metadata: {
+        Row: {
+          additional_picture_titles: string[]
+          id: string
+          price: number
+          shop_description: string | null
+          sold: boolean
+        }
+        Insert: {
+          additional_picture_titles: string[]
+          id?: string
+          price: number
+          shop_description?: string | null
+          sold?: boolean
+        }
+        Update: {
+          additional_picture_titles?: string[]
+          id?: string
+          price?: number
+          shop_description?: string | null
+          sold?: boolean
+        }
+        Relationships: []
+      }
+      sierra_work: {
+        Row: {
+          created_at: string
+          file_path: string
+          height: number
+          id: string
+          medium: string
+          priority: number
+          shop_metadata_id: string | null
+          title: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          height: number
+          id?: string
+          medium: string
+          priority: number
+          shop_metadata_id?: string | null
+          title: string
+          width: number
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          height?: number
+          id?: string
+          medium?: string
+          priority?: number
+          shop_metadata_id?: string | null
+          title?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_shop_metadata_id_fkey"
+            columns: ["shop_metadata_id"]
+            isOneToOne: false
+            referencedRelation: "sierra_shop_metadata"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sierra_work_on_collection: {
+        Row: {
+          collection_id: string
+          work_id: string
+        }
+        Insert: {
+          collection_id: string
+          work_id: string
+        }
+        Update: {
+          collection_id?: string
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_on_collection_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "sierra_collection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_on_collection_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "sierra_work"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user: {
         Row: {
           completed_tutorial: boolean
@@ -682,6 +813,10 @@ export type Database = {
       test_subscriptions_for_customer: {
         Args: { _customer: string }
         Returns: unknown[]
+      }
+      wedding_unique_display_names: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
       }
       wedding_uploads_total: {
         Args: { _category?: string }

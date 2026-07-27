@@ -769,7 +769,7 @@ test(
 )
 
 test(
-  "normalizes labels to a unique first name and fully undoes the mutation",
+  "keeps numbered first names distinct and fully undoes both mutations",
   { concurrency: false, timeout: 20_000 },
   async () =>
     withHarness("label-undo", async (harness) => {
@@ -779,14 +779,14 @@ test(
         harness,
         `/api/clusters/${clusterId}/label`,
         {
-          name: "  Alex   Example  ",
+          name: "  Henry3   Example  ",
           clientMutationId: mutationId("label"),
         }
       )
       const labeled = await expectJson(labelResponse, 200)
       assert.equal(labeled.id, clusterId)
       assert.equal(labeled.status, "labeled")
-      assert.equal(labeled.displayName, "Alex")
+      assert.equal(labeled.displayName, "Henry3")
       assert.ok(labeled.personId)
 
       const duplicateLabel = await expectJson(
@@ -794,7 +794,7 @@ test(
           harness,
           `/api/clusters/${clusterId}/label`,
           {
-            name: "Alex AnotherSurname",
+            name: "Henry3 AnotherSurname",
             clientMutationId: mutationId("duplicate_label"),
           }
         ),
@@ -803,29 +803,28 @@ test(
       assert.equal(duplicateLabel.noOp, true)
       assert.equal(duplicateLabel.id, clusterId)
       assert.equal(duplicateLabel.status, "labeled")
-      assert.equal(duplicateLabel.displayName, "Alex")
+      assert.equal(duplicateLabel.displayName, "Henry3")
       assert.equal(duplicateLabel.personId, labeled.personId)
 
-      const numberedDuplicate = await expectJson(
+      const numberedDistinct = await expectJson(
         await postJson(
           harness,
           `/api/clusters/${clusterId}/label`,
           {
-            name: "Alex3",
-            clientMutationId: mutationId("numbered_duplicate_label"),
+            name: "Henry4 Example",
+            clientMutationId: mutationId("numbered_distinct_label"),
           }
         ),
         200
       )
-      assert.equal(numberedDuplicate.noOp, true)
-      assert.equal(numberedDuplicate.displayName, "Alex")
-      assert.equal(numberedDuplicate.personId, labeled.personId)
+      assert.equal(numberedDistinct.displayName, "Henry4")
+      assert.notEqual(numberedDistinct.personId, labeled.personId)
       assert.equal(
         databaseRow(
           harness,
           "SELECT count(*) AS count FROM actions"
         ).count,
-        1
+        2
       )
 
       const labeledRows = databaseRows(
@@ -835,13 +834,13 @@ test(
       )
       assert.equal(labeledRows.length, 1)
       assert.equal(labeledRows[0].status, "labeled")
-      assert.equal(labeledRows[0].person_id, labeled.personId)
+      assert.equal(labeledRows[0].person_id, numberedDistinct.personId)
       assert.equal(
         databaseRow(
           harness,
           "SELECT count(*) AS count FROM people"
         ).count,
-        1
+        2
       )
       structuredLog("label-undo", "assert", "db_snapshot", {
         table: "faces",
@@ -854,6 +853,31 @@ test(
         200
       )
       assert.deepEqual(undo, {
+        undone: true,
+        actionType: "label_cluster",
+      })
+      const restoredHenry3 = await expectJson(
+        await localFetch(harness, `/api/clusters/${clusterId}`, {
+          headers: authenticatedHeaders(harness),
+        }),
+        200
+      )
+      assert.equal(restoredHenry3.status, "labeled")
+      assert.equal(restoredHenry3.displayName, "Henry3")
+      assert.equal(restoredHenry3.personId, labeled.personId)
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM people"
+        ).count,
+        1
+      )
+
+      const secondUndo = await expectJson(
+        await postJson(harness, "/api/undo", undefined),
+        200
+      )
+      assert.deepEqual(secondUndo, {
         undone: true,
         actionType: "label_cluster",
       })
@@ -872,11 +896,12 @@ test(
         ).count,
         0
       )
-      assert.ok(
+      assert.equal(
         databaseRow(
           harness,
-          "SELECT undone_at FROM actions ORDER BY id DESC LIMIT 1"
-        ).undone_at
+          "SELECT count(*) AS count FROM actions WHERE undone_at IS NOT NULL"
+        ).count,
+        2
       )
       assert.deepEqual(
         await expectJson(
@@ -886,9 +911,526 @@ test(
         { undone: false }
       )
       structuredLog("label-undo", "assert", "no_op_verified", {
-        actions: 1,
-        effectiveUndos: 1,
+        actions: 2,
+        effectiveUndos: 2,
+        distinctPeople: ["Henry3", "Henry4"],
       })
+    })
+)
+
+test(
+  "resolves established first-name aliases without recreating merged people",
+  { concurrency: false, timeout: 20_000 },
+  async () =>
+    withHarness("first-name-aliases", async (harness) => {
+      await establishSession(harness)
+
+      const henry5 = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${harness.fixtures.clusters.label}/label`,
+          {
+            name: "Henry",
+            clientMutationId: mutationId("alias_henry"),
+          }
+        ),
+        200
+      )
+      assert.equal(henry5.displayName, "Henry5")
+
+      const sameHenry5 = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${harness.fixtures.clusters.state}/label`,
+          {
+            name: "Henry5",
+            clientMutationId: mutationId("alias_henry5"),
+          }
+        ),
+        200
+      )
+      assert.equal(sameHenry5.displayName, "Henry5")
+      assert.equal(sameHenry5.personId, henry5.personId)
+
+      const mauricio = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${harness.fixtures.clusters.merge_a}/label`,
+          {
+            name: "Mau",
+            clientMutationId: mutationId("alias_mau"),
+          }
+        ),
+        200
+      )
+      assert.equal(mauricio.displayName, "Mauricio")
+
+      const sameMauricio = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${harness.fixtures.clusters.merge_b}/label`,
+          {
+            name: "Mauricio",
+            clientMutationId: mutationId("alias_mauricio"),
+          }
+        ),
+        200
+      )
+      assert.equal(sameMauricio.displayName, "Mauricio")
+      assert.equal(sameMauricio.personId, mauricio.personId)
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM people"
+        ).count,
+        2
+      )
+    })
+)
+
+test(
+  "batch labels multiple clusters in one action and restores them with one undo",
+  { concurrency: false, timeout: 20_000 },
+  async () =>
+    withHarness("batch-label-undo", async (harness) => {
+      await establishSession(harness)
+
+      const seedClusterId = harness.fixtures.clusters.label
+      const person = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${seedClusterId}/label`,
+          {
+            name: "Batch Person",
+            clientMutationId: mutationId("batch_person"),
+          }
+        ),
+        200
+      )
+      assert.equal(person.displayName, "Batch")
+
+      const ignoredFaceId = harness.fixtures.faces.state_b.id
+      await expectJson(
+        await postJson(
+          harness,
+          `/api/faces/${ignoredFaceId}/ignore`,
+          { clientMutationId: mutationId("batch_ignored_face") }
+        ),
+        200
+      )
+      const unknownFaceId = harness.fixtures.faces.split_a.id
+      await expectJson(
+        await postJson(
+          harness,
+          `/api/faces/${unknownFaceId}/unknown`,
+          { clientMutationId: mutationId("batch_unknown_face") }
+        ),
+        200
+      )
+
+      const updatedClusterIds = [
+        harness.fixtures.clusters.state,
+        harness.fixtures.clusters.split,
+        harness.fixtures.clusters.merge_a,
+      ]
+      const requestedClusterIds = [
+        seedClusterId,
+        ...updatedClusterIds,
+      ]
+      const placeholders = updatedClusterIds.map(() => "?").join(",")
+      const beforeFaces = databaseRows(
+        harness,
+        `SELECT id, cluster_id, person_id, status, revision, updated_at
+         FROM faces
+         WHERE cluster_id IN (${placeholders})
+         ORDER BY id`,
+        updatedClusterIds
+      )
+      const beforeClusters = databaseRows(
+        harness,
+        `SELECT
+           id, status, person_id, representative_face_id,
+           revision, reviewed_at, updated_at
+         FROM clusters
+         WHERE id IN (${placeholders})
+         ORDER BY id`,
+        updatedClusterIds
+      )
+      const disposedBefore = databaseRows(
+        harness,
+        `SELECT id, person_id, status, revision, updated_at
+         FROM faces WHERE id IN (?,?) ORDER BY id`,
+        [ignoredFaceId, unknownFaceId]
+      )
+      const seedRevision = databaseRow(
+        harness,
+        "SELECT revision FROM clusters WHERE id=?",
+        [seedClusterId]
+      ).revision
+      const actionsBefore = databaseRow(
+        harness,
+        "SELECT count(*) AS count FROM actions"
+      ).count
+      assert.equal(actionsBefore, 3)
+
+      const batch = await expectJson(
+        await postJson(harness, "/api/clusters/batch-label", {
+          personId: person.personId,
+          clusterIds: requestedClusterIds,
+          clientMutationId: mutationId("batch_label"),
+        }),
+        200
+      )
+      assert.equal(batch.personId, person.personId)
+      assert.equal(batch.displayName, "Batch")
+      assert.deepEqual(batch.updatedClusterIds, updatedClusterIds)
+      assert.equal(batch.updatedCount, 3)
+      assert.ok(batch.actionId)
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM actions"
+        ).count,
+        actionsBefore + 1
+      )
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT revision FROM clusters WHERE id=?",
+          [seedClusterId]
+        ).revision,
+        seedRevision
+      )
+      assert.deepEqual(
+        databaseRows(
+          harness,
+          `SELECT id, person_id, status, revision, updated_at
+           FROM faces WHERE id IN (?,?) ORDER BY id`,
+          [ignoredFaceId, unknownFaceId]
+        ),
+        disposedBefore
+      )
+
+      const labeledFaces = databaseRows(
+        harness,
+        `SELECT id, person_id, status
+         FROM faces
+         WHERE cluster_id IN (${placeholders})
+         ORDER BY id`,
+        updatedClusterIds
+      )
+      for (const face of labeledFaces) {
+        if (face.id === ignoredFaceId) {
+          assert.equal(face.status, "ignored")
+          assert.equal(face.person_id, null)
+        } else if (face.id === unknownFaceId) {
+          assert.equal(face.status, "unknown")
+          assert.equal(face.person_id, null)
+        } else {
+          assert.equal(face.status, "labeled")
+          assert.equal(face.person_id, person.personId)
+        }
+      }
+      const batchAction = databaseRow(
+        harness,
+        `SELECT action_type, payload_json, inverse_json
+         FROM actions ORDER BY id DESC LIMIT 1`
+      )
+      assert.equal(batchAction.action_type, "batch_label_clusters")
+      assert.deepEqual(
+        JSON.parse(batchAction.payload_json).updatedClusterIds,
+        updatedClusterIds
+      )
+      assert.equal(
+        JSON.parse(batchAction.inverse_json).clusters.length,
+        updatedClusterIds.length
+      )
+      const suggestedFrom = await expectJson(
+        await localFetch(
+          harness,
+          `/api/clusters/${harness.fixtures.clusters.merge_b}`,
+          { headers: authenticatedHeaders(harness) }
+        ),
+        200
+      )
+      const labeledSuggestion = suggestedFrom.suggestions.find(
+        (suggestion) =>
+          suggestion.clusterId === harness.fixtures.clusters.merge_a
+      )
+      assert.ok(labeledSuggestion)
+      assert.equal(labeledSuggestion.status, "labeled")
+      assert.equal(labeledSuggestion.personId, person.personId)
+      assert.equal(labeledSuggestion.displayName, "Batch")
+
+      const noOp = await expectJson(
+        await postJson(harness, "/api/clusters/batch-label", {
+          personId: person.personId,
+          clusterIds: requestedClusterIds,
+          clientMutationId: mutationId("batch_no_op"),
+        }),
+        200
+      )
+      assert.deepEqual(
+        {
+          noOp: noOp.noOp,
+          personId: noOp.personId,
+          displayName: noOp.displayName,
+          updatedClusterIds: noOp.updatedClusterIds,
+          updatedCount: noOp.updatedCount,
+        },
+        {
+          noOp: true,
+          personId: person.personId,
+          displayName: "Batch",
+          updatedClusterIds: [],
+          updatedCount: 0,
+        }
+      )
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM actions"
+        ).count,
+        actionsBefore + 1
+      )
+
+      const undo = await expectJson(
+        await postJson(harness, "/api/undo", undefined),
+        200
+      )
+      assert.deepEqual(undo, {
+        undone: true,
+        actionType: "batch_label_clusters",
+      })
+      assert.deepEqual(
+        databaseRows(
+          harness,
+          `SELECT id, cluster_id, person_id, status, revision, updated_at
+           FROM faces
+           WHERE cluster_id IN (${placeholders})
+           ORDER BY id`,
+          updatedClusterIds
+        ),
+        beforeFaces
+      )
+      assert.deepEqual(
+        databaseRows(
+          harness,
+          `SELECT
+             id, status, person_id, representative_face_id,
+             revision, reviewed_at, updated_at
+           FROM clusters
+           WHERE id IN (${placeholders})
+           ORDER BY id`,
+          updatedClusterIds
+        ),
+        beforeClusters
+      )
+      const seedAfterUndo = await expectJson(
+        await localFetch(
+          harness,
+          `/api/clusters/${seedClusterId}`,
+          { headers: authenticatedHeaders(harness) }
+        ),
+        200
+      )
+      assert.equal(seedAfterUndo.status, "labeled")
+      assert.equal(seedAfterUndo.personId, person.personId)
+      structuredLog("batch-label-undo", "assert", "db_snapshot", {
+        actionType: "batch_label_clusters",
+        requestedClusters: requestedClusterIds.length,
+        updatedClusters: updatedClusterIds.length,
+        preservedDisposedFaces: 2,
+        undoRestoredExactRows: true,
+      })
+    })
+)
+
+test(
+  "rejects invalid or conflicting batch labels without partial writes",
+  { concurrency: false, timeout: 20_000 },
+  async () =>
+    withHarness("batch-label-conflict", async (harness) => {
+      await establishSession(harness)
+
+      const firstPerson = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${harness.fixtures.clusters.label}/label`,
+          {
+            name: "First Person",
+            clientMutationId: mutationId("batch_first_person"),
+          }
+        ),
+        200
+      )
+      const conflictingClusterId = harness.fixtures.clusters.merge_b
+      const secondPerson = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${conflictingClusterId}/label`,
+          {
+            name: "Second Person",
+            clientMutationId: mutationId("batch_second_person"),
+          }
+        ),
+        200
+      )
+      assert.notEqual(firstPerson.personId, secondPerson.personId)
+
+      const validClusterId = harness.fixtures.clusters.merge_a
+      const actionsBefore = databaseRow(
+        harness,
+        "SELECT count(*) AS count FROM actions"
+      ).count
+      const missingPersonId = fixtureId(
+        "person",
+        randomUUID(),
+        "missing"
+      )
+      assert.equal(
+        (
+          await expectJson(
+            await postJson(harness, "/api/clusters/batch-label", {
+              personId: missingPersonId,
+              clusterIds: [validClusterId],
+              clientMutationId: mutationId("batch_missing_person"),
+            }),
+            404
+          )
+        ).error,
+        "Person not found"
+      )
+      await expectJson(
+        await postJson(harness, "/api/clusters/batch-label", {
+          personId: firstPerson.personId,
+          clusterIds: [],
+          clientMutationId: mutationId("batch_empty"),
+        }),
+        400
+      )
+      await expectJson(
+        await postJson(harness, "/api/clusters/batch-label", {
+          personId: firstPerson.personId,
+          clusterIds: [validClusterId, validClusterId],
+          clientMutationId: mutationId("batch_duplicate"),
+        }),
+        400
+      )
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM actions"
+        ).count,
+        actionsBefore
+      )
+
+      const clusterIds = [validClusterId, conflictingClusterId]
+      const beforeClusters = databaseRows(
+        harness,
+        `SELECT
+           id, status, person_id, representative_face_id,
+           revision, reviewed_at, updated_at
+         FROM clusters WHERE id IN (?,?) ORDER BY id`,
+        clusterIds
+      )
+      const beforeFaces = databaseRows(
+        harness,
+        `SELECT id, cluster_id, person_id, status, revision, updated_at
+         FROM faces WHERE cluster_id IN (?,?) ORDER BY id`,
+        clusterIds
+      )
+      const conflict = await expectJson(
+        await postJson(harness, "/api/clusters/batch-label", {
+          personId: firstPerson.personId,
+          clusterIds,
+          clientMutationId: mutationId("batch_conflict"),
+        }),
+        409
+      )
+      assert.equal(
+        conflict.error,
+        "A selected cluster belongs to another person"
+      )
+      assert.deepEqual(
+        databaseRows(
+          harness,
+          `SELECT
+             id, status, person_id, representative_face_id,
+             revision, reviewed_at, updated_at
+           FROM clusters WHERE id IN (?,?) ORDER BY id`,
+          clusterIds
+        ),
+        beforeClusters
+      )
+      assert.deepEqual(
+        databaseRows(
+          harness,
+          `SELECT id, cluster_id, person_id, status, revision, updated_at
+           FROM faces WHERE cluster_id IN (?,?) ORDER BY id`,
+          clusterIds
+        ),
+        beforeFaces
+      )
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM actions"
+        ).count,
+        actionsBefore
+      )
+
+      const unknownClusterId = harness.fixtures.clusters.blocked_a
+      await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${unknownClusterId}/unknown`,
+          { clientMutationId: mutationId("batch_unknown_cluster") }
+        ),
+        200
+      )
+      const afterDispositionActions = databaseRow(
+        harness,
+        "SELECT count(*) AS count FROM actions"
+      ).count
+      const disposedConflict = await expectJson(
+        await postJson(harness, "/api/clusters/batch-label", {
+          personId: firstPerson.personId,
+          clusterIds: [unknownClusterId],
+          clientMutationId: mutationId("batch_disposed_conflict"),
+        }),
+        409
+      )
+      assert.equal(
+        disposedConflict.error,
+        "Recover ignored or unknown clusters before batch labeling"
+      )
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT count(*) AS count FROM actions"
+        ).count,
+        afterDispositionActions
+      )
+      assert.equal(
+        databaseRow(
+          harness,
+          "SELECT status FROM clusters WHERE id=?",
+          [unknownClusterId]
+        ).status,
+        "unknown"
+      )
+      structuredLog(
+        "batch-label-conflict",
+        "assert",
+        "transaction_rollback_verified",
+        {
+          invalidRequestsRecorded: 0,
+          validClusterUnchanged: true,
+          conflictingClusterUnchanged: true,
+          disposedClusterRejected: true,
+        }
+      )
     })
 )
 

@@ -227,6 +227,13 @@ async function handleRequest(context) {
   }
   if (
     method === "POST"
+    && url.pathname === "/api/clusters/batch-label"
+  ) {
+    const body = await readJson(request)
+    return sendJson(response, 200, store.batchLabelClusters(body))
+  }
+  if (
+    method === "POST"
     && (url.pathname === "/api/undo" || url.pathname === "/api/actions/undo")
   ) {
     await readJson(request, { allowEmpty: true })

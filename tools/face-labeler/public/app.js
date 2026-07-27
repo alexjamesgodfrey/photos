@@ -11,6 +11,7 @@
     summary: {},
     activeClusterId: null,
     activeDetail: null,
+    batchLabelProposal: null,
     selectedClusterIds: new Set(),
     selectedFaceIds: new Set(),
     renderedClusterCount: 0,
@@ -62,6 +63,9 @@
     recoverCluster: document.querySelector("#recover-cluster"),
     suggestionsPanel: document.querySelector("#suggestions-panel"),
     suggestionsStrip: document.querySelector("#suggestions-strip"),
+    batchLabelAction: document.querySelector("#batch-label-action"),
+    batchLabelHint: document.querySelector("#batch-label-hint"),
+    batchLabelButton: document.querySelector("#batch-label-button"),
     faceGrid: document.querySelector("#face-grid"),
     faceSelectionCount: document.querySelector("#face-selection-count"),
     clearFaceSelection: document.querySelector("#clear-face-selection"),
@@ -191,6 +195,7 @@
     const similarity = raw.similarity ?? {};
     return {
       clusterId: String(raw.clusterId ?? raw.id ?? ""),
+      personId: raw.personId ?? null,
       displayName: String(
         raw.displayName ?? raw.personName ?? raw.label ?? "",
       ).trim(),
@@ -742,6 +747,7 @@
     elements.recoverCluster.hidden =
       cluster.status !== "ignored" && cluster.status !== "unknown";
     renderSuggestions(cluster.suggestions ?? []);
+    renderBatchLabelAction(cluster);
 
     elements.previousCluster.disabled = state.clusters.length < 2;
     elements.nextCluster.disabled = state.clusters.length < 2;
@@ -864,6 +870,130 @@
       fragment.append(card);
     });
     elements.suggestionsStrip.replaceChildren(fragment);
+  }
+
+  function getBatchLabelProposal(cluster) {
+    const suggestions = cluster.suggestions ?? [];
+    const namedMatches = suggestions.filter(
+      (suggestion) => suggestion.status === "labeled",
+    );
+    if (cluster.status === "labeled") {
+      namedMatches.unshift(cluster);
+    }
+    if (!namedMatches.length) return null;
+
+    if (
+      namedMatches.some(
+        (match) => !match.personId || !match.displayName,
+      )
+    ) {
+      return null;
+    }
+
+    const people = new Map();
+    namedMatches.forEach((match) => {
+      const personId = String(match.personId);
+      if (!people.has(personId)) {
+        people.set(personId, match.displayName);
+      }
+    });
+    if (people.size !== 1) return null;
+
+    const [[personId, displayName]] = people;
+    if (cluster.status === "ignored" || cluster.status === "unknown") {
+      return null;
+    }
+    if (
+      cluster.status === "labeled" &&
+      (!cluster.personId || String(cluster.personId) !== personId)
+    ) {
+      return null;
+    }
+
+    const clusterIds = new Set();
+    if (cluster.status === "unreviewed") {
+      clusterIds.add(cluster.id);
+    }
+    suggestions.forEach((suggestion) => {
+      if (suggestion.status === "unreviewed") {
+        clusterIds.add(suggestion.clusterId);
+      }
+    });
+
+    if (!clusterIds.size) return null;
+    return {
+      personId,
+      displayName,
+      clusterIds: [...clusterIds],
+    };
+  }
+
+  function renderBatchLabelAction(cluster) {
+    const proposal = getBatchLabelProposal(cluster);
+    state.batchLabelProposal = proposal;
+    elements.batchLabelAction.hidden = !proposal;
+    if (!proposal) {
+      elements.batchLabelButton.textContent = "Label groups";
+      return;
+    }
+
+    const count = proposal.clusterIds.length;
+    elements.batchLabelHint.textContent = `${proposal.displayName} is the only named person among these suggestions. Already-labeled groups stay unchanged.`;
+    elements.batchLabelButton.textContent = `Label ${pluralize(
+      count,
+      "group",
+    )} as ${proposal.displayName}`;
+    elements.batchLabelButton.setAttribute(
+      "aria-label",
+      `Label ${pluralize(count, "group")} as ${proposal.displayName}`,
+    );
+  }
+
+  async function batchLabelSuggestedGroups() {
+    const proposal = state.batchLabelProposal;
+    if (!proposal) return;
+    const count = proposal.clusterIds.length;
+    const confirmed = await confirmAction({
+      title: `Label ${pluralize(count, "group")} as ${proposal.displayName}?`,
+      message: `This assigns ${proposal.displayName} to ${pluralize(
+        count,
+        "unreviewed group",
+      )} in one action. Already-labeled groups will not be changed.`,
+      confirmLabel: `Label ${pluralize(count, "group")}`,
+      danger: false,
+    });
+    if (!confirmed) return;
+
+    setBusy(elements.batchLabelButton, true);
+    try {
+      const result = await api("/api/clusters/batch-label", {
+        method: "POST",
+        body: JSON.stringify({
+          personId: proposal.personId,
+          clusterIds: proposal.clusterIds,
+          clientMutationId: crypto.randomUUID(),
+        }),
+      });
+      const updatedCount = asNumber(result?.updatedCount, count);
+      if (result?.noOp || updatedCount === 0) {
+        toast("Those groups were already labeled. Nothing changed.", "info");
+      } else {
+        toast(
+          `${pluralize(updatedCount, "group")} labeled as ${
+            result?.displayName || proposal.displayName
+          }.`,
+        );
+      }
+      await loadBootstrap({
+        preserveActive: state.filter !== "unreviewed",
+        quiet: true,
+      });
+    } catch (error) {
+      showError(error, "Couldn’t label the suggested groups.");
+    } finally {
+      setBusy(elements.batchLabelButton, false);
+      renderDetail();
+    }
   }
 
   function updateFaceSelection() {
@@ -1039,7 +1169,11 @@
         method: "POST",
         body: body === undefined ? undefined : JSON.stringify(body),
       });
-      toast(successMessage);
+      toast(
+        typeof successMessage === "function"
+          ? successMessage(result)
+          : successMessage,
+      );
       await loadBootstrap({ preserveActive, quiet: true });
       return result;
     } catch (error) {
@@ -1055,7 +1189,7 @@
     event.preventDefault();
     if (!state.activeClusterId) return;
     const inputName = elements.personName.value.trim().replace(/\s+/g, " ");
-    const firstName = inputName.split(" ")[0].replace(/\d+$/u, "");
+    const firstName = inputName.split(" ")[0];
     if (!firstName) {
       elements.personName.focus();
       showError(new Error("Enter a first name before saving."));
@@ -1066,7 +1200,8 @@
       { name: firstName },
       {
         button: elements.saveLabel,
-        successMessage: `${firstName} saved.`,
+        successMessage: (result) =>
+          `${result?.displayName || firstName} saved.`,
         preserveActive: state.filter !== "unreviewed",
       },
     );
@@ -1478,6 +1613,10 @@
   elements.unknownCluster.addEventListener("click", markClusterUnknown);
   elements.ignoreCluster.addEventListener("click", ignoreActiveCluster);
   elements.recoverCluster.addEventListener("click", recoverActiveCluster);
+  elements.batchLabelButton.addEventListener(
+    "click",
+    batchLabelSuggestedGroups,
+  );
   elements.mergeButton.addEventListener("click", mergeSelectedClusters);
   elements.clearClusterSelection.addEventListener("click", clearClusterSelection);
   elements.splitButton.addEventListener("click", splitSelectedFaces);

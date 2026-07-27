@@ -202,12 +202,12 @@
                 <span class="step-badge">Step 2</span>
                 <div>
                   <h3>Name this person</h3>
-                  <p>Use their unique first name. It applies to every included face in this group.</p>
+                  <p>Use their unique first-name label. Numbered labels such as Henry3 stay separate.</p>
                 </div>
               </div>
               <form class="label-form" id="label-form">
                 <label class="sr-only" for="person-name">Person’s first name</label>
-                <input id="person-name" name="name" type="text" placeholder="e.g. Alex" maxlength="120" autocomplete="off">
+                <input id="person-name" name="name" type="text" placeholder="e.g. Alex or Henry3" maxlength="120" autocomplete="off">
                 <button class="button button-primary" id="save-label" type="submit">Save first name</button>
               </form>
               <div class="cluster-dispositions" id="cluster-dispositions">
@@ -224,6 +224,17 @@
                   <h3 id="suggestions-heading">Possible matches</h3>
                 </div>
                 <p>Open to compare, or add a group to your merge selection. Nothing merges automatically.</p>
+              </div>
+              <div class="batch-label-action" id="batch-label-action" hidden>
+                <div>
+                  <span class="batch-label-mark" aria-hidden="true">
+                    <svg><use href="#icon-spark"></use></svg>
+                  </span>
+                  <p id="batch-label-hint">One person already connects these suggestions.</p>
+                </div>
+                <button class="button batch-label-button" id="batch-label-button" type="button" aria-describedby="batch-label-hint">
+                  Label groups
+                </button>
               </div>
               <div class="suggestions-strip" id="suggestions-strip"></div>
             </section>

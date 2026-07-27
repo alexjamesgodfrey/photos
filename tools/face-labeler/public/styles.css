@@ -1117,6 +1117,79 @@ input:focus-visible,
   text-align: right;
 }
 
+.batch-label-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem;
+  margin-bottom: 0.75rem;
+  color: #fff;
+  background:
+    radial-gradient(circle at 5% 0, rgba(255, 255, 255, 0.16), transparent 11rem),
+    linear-gradient(120deg, var(--accent-dark), #754653);
+  border: 1px solid rgba(94, 53, 65, 0.82);
+  border-radius: 11px;
+  box-shadow: 0 7px 20px rgba(94, 53, 65, 0.16);
+}
+
+.batch-label-action[hidden] {
+  display: none;
+}
+
+.batch-label-action > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.batch-label-action p {
+  max-width: 62ch;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.72rem;
+}
+
+.batch-label-mark {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
+
+.batch-label-mark svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.batch-label-button {
+  max-width: min(380px, 54%);
+  flex: 0 0 auto;
+  overflow: hidden;
+  color: var(--accent-dark);
+  background: #fff;
+  border-color: #fff;
+  box-shadow: 0 3px 10px rgba(37, 21, 26, 0.2);
+  text-overflow: ellipsis;
+}
+
+.batch-label-button:hover:not(:disabled) {
+  color: var(--accent-dark);
+  background: #f8eef1;
+  border-color: #f8eef1;
+  box-shadow: 0 5px 14px rgba(37, 21, 26, 0.26);
+  transform: translateY(-1px);
+}
+
+.batch-label-button.is-busy::after {
+  color: var(--accent-dark);
+}
+
 .suggestions-strip {
   display: grid;
   grid-auto-columns: minmax(235px, 280px);
@@ -2055,6 +2128,16 @@ kbd {
   .suggestions-heading > p {
     margin-top: 0.35rem;
     text-align: left;
+  }
+
+  .batch-label-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .batch-label-button {
+    width: 100%;
+    max-width: none;
   }
 
   .suggestions-strip {

@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto"
 import { DatabaseSync } from "node:sqlite"
 
 const CLUSTER_STATES = new Set(["unreviewed", "labeled", "unknown", "ignored"])
+const FIRST_NAME_ALIASES = new Map([
+  ["henry", "Henry5"],
+  ["mau", "Mauricio"],
+])
 const MUTABLE_FACE_COLUMNS = [
   "id",
   "cluster_id",
@@ -67,6 +71,7 @@ export function createFaceStore(databasePath, options = {}) {
     exportPreview: () => getExportPreview(database),
     labelCluster: (clusterId, body = {}) =>
       labelCluster(database, clusterId, body),
+    batchLabelClusters: (body = {}) => batchLabelClusters(database, body),
     dispositionCluster: (clusterId, state, body = {}) =>
       dispositionCluster(database, clusterId, state, body),
     dispositionFace: (faceId, state, body = {}) =>
@@ -196,7 +201,7 @@ function getCluster(database, clusterId) {
       `SELECT
         CASE WHEN s.cluster_id_a=? THEN s.cluster_id_b ELSE s.cluster_id_a END AS cluster_id,
         s.similarity_max, s.similarity_median, s.similarity_min,
-        c.status, pe.display_name, c.representative_face_id
+        c.status, c.person_id, pe.display_name, c.representative_face_id
        FROM cluster_suggestions s
        JOIN clusters c ON c.id=CASE
          WHEN s.cluster_id_a=? THEN s.cluster_id_b ELSE s.cluster_id_a END
@@ -208,6 +213,7 @@ function getCluster(database, clusterId) {
     .all(id, id, id, id)
     .map((suggestion) => ({
       clusterId: suggestion.cluster_id,
+      personId: suggestion.person_id,
       displayName: suggestion.display_name,
       status: suggestion.status,
       representativeFaceId: suggestion.representative_face_id,
@@ -343,6 +349,94 @@ function labelCluster(database, rawClusterId, body) {
       },
       result: getCluster(database, clusterId),
       beforeRevision: number(cluster.revision),
+    }
+  })
+}
+
+function batchLabelClusters(database, body) {
+  const personId = validateId(body.personId, "person")
+  const clusterIds = requiredUniqueIds(body.clusterIds, "cluster")
+  return mutate(database, body, "batch_label_clusters", () => {
+    const person = database.prepare("SELECT * FROM people WHERE id=?").get(personId)
+    if (!person) throw notFound("Person")
+
+    const clusters = clusterIds.map((clusterId) =>
+      requireCluster(database, clusterId)
+    )
+    const updatedClusterIds = []
+    const labelableFace = database.prepare(
+      "SELECT 1 FROM faces WHERE cluster_id=? "
+        + "AND status NOT IN ('ignored','unknown') LIMIT 1"
+    )
+    const conflictingFace = database.prepare(
+      "SELECT 1 FROM faces WHERE cluster_id=? AND status='labeled' "
+        + "AND person_id IS NOT ? LIMIT 1"
+    )
+    for (const cluster of clusters) {
+      if (cluster.status === "ignored" || cluster.status === "unknown") {
+        throw conflict(
+          "Recover ignored or unknown clusters before batch labeling"
+        )
+      }
+      if (
+        cluster.status === "labeled"
+        && cluster.person_id !== person.id
+      ) {
+        throw conflict("A selected cluster belongs to another person")
+      }
+      if (!labelableFace.get(cluster.id)) {
+        throw conflict("Recover at least one face before batch labeling")
+      }
+      if (conflictingFace.get(cluster.id, person.id)) {
+        throw conflict("A selected face belongs to another person")
+      }
+      if (cluster.status === "unreviewed") {
+        updatedClusterIds.push(cluster.id)
+      }
+    }
+
+    const result = {
+      personId: person.id,
+      displayName: person.display_name,
+      updatedClusterIds,
+      updatedCount: updatedClusterIds.length,
+    }
+    if (!updatedClusterIds.length) {
+      return {
+        skipAction: true,
+        result: { noOp: true, ...result },
+      }
+    }
+
+    const faceIds = facesForClusters(database, updatedClusterIds)
+    const inverse = {
+      faces: snapshotFaces(database, faceIds),
+      clusters: snapshotClusters(database, updatedClusterIds),
+      people: [],
+      deleteClusters: [],
+      deletePeople: [],
+      deleteCannotLinks: [],
+    }
+    const now = utcNow()
+    const labelFaces = database.prepare(
+      "UPDATE faces SET person_id=?, status='labeled', "
+        + "revision=revision+1, updated_at=? WHERE cluster_id=? "
+        + "AND status NOT IN ('ignored','unknown') "
+        + "AND (status!='labeled' OR person_id IS NOT ?)"
+    )
+    for (const clusterId of updatedClusterIds) {
+      labelFaces.run(person.id, now, clusterId, person.id)
+      recomputeCluster(database, clusterId, now)
+    }
+    return {
+      payload: {
+        personId: person.id,
+        displayName: person.display_name,
+        clusterIds,
+        updatedClusterIds,
+      },
+      inverse,
+      result,
     }
   })
 }
@@ -585,6 +679,10 @@ function mutate(database, body, actionType, operation) {
   database.exec("BEGIN IMMEDIATE")
   try {
     const outcome = operation()
+    if (outcome.skipAction) {
+      database.exec("COMMIT")
+      return outcome.result
+    }
     const action = database
       .prepare(
         "INSERT INTO actions "
@@ -873,6 +971,7 @@ function validateId(value, kind) {
   const patterns = {
     cluster: /^c_[a-zA-Z0-9_-]{8,80}$/,
     face: /^f_[a-f0-9]{32}$/,
+    person: /^person_[a-f0-9]{32}$/,
     photo: /^p_[a-f0-9]{32}$/,
   }
   if (typeof value !== "string" || !patterns[kind].test(value)) {
@@ -888,14 +987,25 @@ function uniqueIds(value, kind) {
   return [...new Set(value.map((item) => validateId(item, kind)))]
 }
 
+function requiredUniqueIds(value, kind) {
+  if (!Array.isArray(value) || !value.length || value.length > 1_000) {
+    throw badRequest(`Expected 1 to 1000 ${kind} IDs`)
+  }
+  const ids = value.map((item) => validateId(item, kind))
+  if (new Set(ids).size !== ids.length) {
+    throw badRequest(`${kind} IDs must be unique`)
+  }
+  return ids
+}
+
 function normalizeDisplayName(value) {
   if (typeof value !== "string") throw badRequest("Name is required")
   const normalized = value.normalize("NFKC").trim().replace(/\s+/g, " ")
-  const firstName = normalized.split(" ")[0].replace(/\d+$/u, "")
+  const firstName = normalized.split(" ")[0]
   if (!firstName || firstName.length > 120) {
     throw badRequest("First name must be between 1 and 120 characters")
   }
-  return firstName
+  return FIRST_NAME_ALIASES.get(normalizeNameKey(firstName)) ?? firstName
 }
 
 function normalizeNameKey(value) {

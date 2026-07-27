@@ -72,6 +72,8 @@ export function createFaceStore(databasePath, options = {}) {
     labelCluster: (clusterId, body = {}) =>
       labelCluster(database, clusterId, body),
     batchLabelClusters: (body = {}) => batchLabelClusters(database, body),
+    ignoreUnreviewedClusters: (body = {}) =>
+      ignoreUnreviewedClusters(database, body),
     dispositionCluster: (clusterId, state, body = {}) =>
       dispositionCluster(database, clusterId, state, body),
     dispositionFace: (faceId, state, body = {}) =>
@@ -435,6 +437,125 @@ function batchLabelClusters(database, body) {
         clusterIds,
         updatedClusterIds,
       },
+      inverse,
+      result,
+    }
+  })
+}
+
+function ignoreUnreviewedClusters(database, body) {
+  return mutate(database, body, "ignore_all_unreviewed_clusters", () => {
+    const clusterIds = database
+      .prepare(
+        "SELECT id FROM clusters WHERE status='unreviewed' ORDER BY id"
+      )
+      .all()
+      .map((row) => row.id)
+    if (!clusterIds.length) {
+      return {
+        skipAction: true,
+        result: {
+          noOp: true,
+          targetClusterCount: 0,
+          ignoredClusterCount: 0,
+          preservedUnknownClusterCount: 0,
+          ignoredFaceCount: 0,
+          preservedUnknownFaceCount: 0,
+          preservedIgnoredFaceCount: 0,
+        },
+      }
+    }
+
+    const labeledConflict = database
+      .prepare(
+        `SELECT count(*) AS count
+         FROM faces f
+         JOIN clusters c ON c.id=f.cluster_id
+         WHERE c.status='unreviewed' AND f.status='labeled'`
+      )
+      .get()
+    if (number(labeledConflict.count)) {
+      throw conflict(
+        "Unreviewed clusters contain labeled faces; no rows were changed"
+      )
+    }
+
+    const faceIds = facesForClusters(database, clusterIds)
+    if (!faceIds.length) {
+      throw conflict(
+        "Unreviewed clusters contain no faces; no rows were changed"
+      )
+    }
+    const protectedCounts = database
+      .prepare(
+        `SELECT
+           sum(CASE WHEN f.status='unknown' THEN 1 ELSE 0 END)
+             AS unknown_faces,
+           sum(CASE WHEN f.status='ignored' THEN 1 ELSE 0 END)
+             AS ignored_faces
+         FROM faces f
+         JOIN clusters c ON c.id=f.cluster_id
+         WHERE c.status='unreviewed'`
+      )
+      .get()
+    const inverse = {
+      faces: snapshotFaces(database, faceIds),
+      clusters: snapshotClusters(database, clusterIds),
+      people: [],
+      deleteClusters: [],
+      deletePeople: [],
+      deleteCannotLinks: [],
+    }
+    const now = utcNow()
+    const ignoredFaces = database
+      .prepare(
+        `UPDATE faces
+         SET person_id=NULL, status='ignored', revision=revision+1, updated_at=?
+         WHERE status='unreviewed'
+           AND cluster_id IN (
+             SELECT id FROM clusters WHERE status='unreviewed'
+           )`
+      )
+      .run(now)
+    database
+      .prepare(
+        `UPDATE clusters
+         SET status=CASE
+               WHEN EXISTS (
+                 SELECT 1 FROM faces f
+                 WHERE f.cluster_id=clusters.id AND f.status='unknown'
+               )
+               THEN 'unknown'
+               ELSE 'ignored'
+             END,
+             person_id=NULL,
+             reviewed_at=?,
+             revision=revision+1,
+             updated_at=?
+         WHERE status='unreviewed'`
+      )
+      .run(now, now)
+    const outcome = database
+      .prepare(
+        `SELECT
+           sum(CASE WHEN status='ignored' THEN 1 ELSE 0 END)
+             AS ignored_clusters,
+           sum(CASE WHEN status='unknown' THEN 1 ELSE 0 END)
+             AS unknown_clusters
+         FROM clusters
+         WHERE id IN (${clusterIds.map(() => "?").join(",")})`
+      )
+      .get(...clusterIds)
+    const result = {
+      targetClusterCount: clusterIds.length,
+      ignoredClusterCount: number(outcome.ignored_clusters),
+      preservedUnknownClusterCount: number(outcome.unknown_clusters),
+      ignoredFaceCount: number(ignoredFaces.changes),
+      preservedUnknownFaceCount: number(protectedCounts.unknown_faces),
+      preservedIgnoredFaceCount: number(protectedCounts.ignored_faces),
+    }
+    return {
+      payload: result,
       inverse,
       result,
     }

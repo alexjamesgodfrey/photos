@@ -487,6 +487,390 @@
   scroll-margin-top: 5.25rem;
 }
 
+.people-filter {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid rgba(75, 61, 46, 0.12);
+  border-radius: 1.35rem;
+  padding: clamp(1.1rem, 2.6vw, 1.75rem);
+  background:
+    radial-gradient(
+      circle at 92% 0%,
+      rgba(205, 177, 140, 0.18),
+      transparent 19rem
+    ),
+    rgba(255, 252, 247, 0.72);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 18px 50px rgba(74, 58, 41, 0.045);
+}
+
+.people-filter__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.people-filter__eyebrow {
+  margin: 0 0 0.32rem;
+  color: var(--wedding-brass-dark);
+  font-size: 0.64rem;
+  font-weight: 720;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.people-filter h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.75rem, 3vw, 2.55rem);
+  font-weight: 400;
+  letter-spacing: -0.042em;
+  line-height: 1.04;
+}
+
+.people-filter__description {
+  margin: 0.55rem 0 0;
+  color: var(--wedding-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.people-search {
+  position: relative;
+  display: flex;
+  width: min(20rem, 36vw);
+  min-width: 14rem;
+  height: 2.9rem;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid rgba(74, 62, 49, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--wedding-muted-strong);
+  transition:
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background-color 170ms ease;
+}
+
+.people-search:focus-within {
+  border-color: rgba(129, 93, 63, 0.58);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(164, 123, 81, 0.13);
+}
+
+.people-search > svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 1rem;
+  flex: 0 0 auto;
+}
+
+.people-search input {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  padding: 0 0.65rem;
+  background: transparent;
+  color: var(--wedding-ink);
+  font-size: 0.78rem;
+}
+
+.people-search input::placeholder {
+  color: #8b8379;
+  opacity: 1;
+}
+
+.people-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.people-search button {
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--wedding-muted-strong);
+  cursor: pointer;
+}
+
+.people-search button:hover {
+  color: var(--wedding-ink);
+}
+
+.people-search button:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: -3px;
+}
+
+.people-search button svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.people-filter__rail {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(0.42rem, 1vw, 0.8rem);
+  margin: 1.4rem calc(clamp(1.1rem, 2.6vw, 1.75rem) * -1)
+    calc(clamp(1.1rem, 2.6vw, 1.75rem) * -0.3);
+  overflow-x: auto;
+  padding: 0.3rem clamp(1.1rem, 2.6vw, 1.75rem) 0.8rem;
+  scrollbar-color: rgba(129, 93, 63, 0.28) transparent;
+  scrollbar-width: thin;
+  scroll-padding-inline: clamp(1.1rem, 2.6vw, 1.75rem);
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+}
+
+.people-filter__rail::-webkit-scrollbar {
+  height: 5px;
+}
+
+.people-filter__rail::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(129, 93, 63, 0.24);
+}
+
+.people-person {
+  display: grid;
+  width: 5.6rem;
+  min-width: 5.6rem;
+  min-height: 7.5rem;
+  scroll-snap-align: start;
+  justify-items: center;
+  align-content: start;
+  border: 0;
+  border-radius: 1rem;
+  padding: 0.45rem 0.35rem 0.55rem;
+  background: transparent;
+  color: var(--wedding-ink);
+  cursor: pointer;
+  opacity: 0;
+  animation: people-person-arrive 360ms cubic-bezier(0.18, 0.75, 0.2, 1)
+    0ms forwards;
+  transition:
+    transform 170ms ease,
+    background-color 170ms ease;
+}
+
+.people-person:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.people-person.is-selected {
+  background: rgba(52, 67, 58, 0.09);
+}
+
+.people-person:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: 2px;
+}
+
+.people-avatar {
+  position: relative;
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  background: #dfd4c5;
+  box-shadow:
+    0 0 0 1px rgba(67, 54, 42, 0.14),
+    0 5px 15px rgba(65, 50, 36, 0.1);
+  color: #6b5847;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.people-person:hover .people-avatar {
+  transform: scale(1.035);
+}
+
+.people-person.is-selected .people-avatar {
+  box-shadow:
+    0 0 0 3px var(--wedding-green),
+    0 0 0 5px rgba(255, 255, 255, 0.9),
+    0 7px 19px rgba(52, 67, 58, 0.2);
+}
+
+.people-avatar__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(
+      circle at 34% 26%,
+      rgba(255, 255, 255, 0.5),
+      transparent 40%
+    ),
+    #d9cbb9;
+}
+
+.people-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.035);
+  transition:
+    opacity 260ms ease,
+    transform 420ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+.people-avatar.is-loaded img {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.people-avatar--all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.24rem;
+  background: var(--wedding-green);
+  color: #fffaf2;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.people-avatar--all i {
+  width: 0.7rem;
+  height: 1px;
+  background: rgba(255, 250, 242, 0.45);
+  transform: rotate(-55deg);
+}
+
+.people-person__name {
+  display: block;
+  width: 100%;
+  margin-top: 0.62rem;
+  overflow: hidden;
+  font-size: 0.72rem;
+  font-weight: 680;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-person__count {
+  display: block;
+  width: 100%;
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: var(--wedding-muted);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-filter__empty {
+  margin: 1.2rem 0 0;
+  color: var(--wedding-muted);
+  font-size: 0.78rem;
+}
+
+.people-filter--loading {
+  min-height: 13.25rem;
+}
+
+.people-filter__skeletons {
+  display: flex;
+  gap: clamp(0.7rem, 1.3vw, 1.2rem);
+  margin-top: 1.5rem;
+  overflow: hidden;
+}
+
+.people-filter__skeletons span {
+  width: 4rem;
+  height: 4rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background:
+    linear-gradient(
+      105deg,
+      transparent 37%,
+      rgba(255, 255, 255, 0.52) 48%,
+      transparent 59%
+    ),
+    #e7ded1;
+  background-size: 220% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+.gallery-results {
+  display: flex;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: -0.15rem 0 0.75rem;
+  padding: 0 0.2rem;
+  color: var(--wedding-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-results p {
+  margin: 0;
+}
+
+.gallery-results strong {
+  color: var(--wedding-ink);
+  font-weight: 680;
+}
+
+.gallery-results button {
+  min-height: 2.4rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  background: rgba(52, 67, 58, 0.09);
+  color: var(--wedding-green);
+  font-size: 0.7rem;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.gallery-results button:hover {
+  background: rgba(52, 67, 58, 0.15);
+}
+
+.gallery-results button:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: 2px;
+}
+
+.gallery-photo-region {
+  scroll-margin-top: 5.25rem;
+}
+
+.gallery-photo-region:focus {
+  outline: none;
+}
+
 .gallery-skeleton-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1001,6 +1385,51 @@
     scroll-margin-top: 4.5rem;
   }
 
+  .people-filter {
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+
+  .people-filter__heading {
+    display: block;
+  }
+
+  .people-filter h1 {
+    font-size: 1.8rem;
+  }
+
+  .people-filter__description {
+    max-width: 19rem;
+  }
+
+  .people-search {
+    width: 100%;
+    min-width: 0;
+    height: 2.85rem;
+    margin-top: 1rem;
+  }
+
+  .people-filter__rail {
+    margin: 1.15rem -1rem -0.2rem;
+    padding: 0.3rem 1rem 0.75rem;
+    scroll-padding-inline: 1rem;
+  }
+
+  .people-person {
+    width: 5.15rem;
+    min-width: 5.15rem;
+    min-height: 7.1rem;
+  }
+
+  .people-avatar {
+    width: 3.7rem;
+    height: 3.7rem;
+  }
+
+  .gallery-results {
+    margin-bottom: 0.55rem;
+  }
+
   .gallery-card__button,
   .gallery-card__media,
   .gallery-skeleton {
@@ -1107,6 +1536,17 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes people-person-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(0.45rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 

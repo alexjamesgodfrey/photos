@@ -15,6 +15,8 @@ import { after, before, test } from "node:test"
 import { fileURLToPath } from "node:url"
 
 import { startFaceLabelerServer } from "../tools/face-labeler/server.mjs"
+import { createFaceStore } from "../tools/face-labeler/store.mjs"
+import { runIgnoreUnreviewed } from "../tools/face-labeler/ignore-unreviewed.mjs"
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -2152,4 +2154,239 @@ test(
         status: "unreviewed",
       })
     })
+)
+
+test(
+  "ignores every unreviewed cluster in one action and restores all rows with undo",
+  { concurrency: false, timeout: 20_000 },
+  async () => {
+    const workspace = await mkdtemp(
+      path.join(TEST_ROOT, "ignore-all-unreviewed-")
+    )
+    assertTestWorkspace(workspace)
+    const initialized = await initializeDatabase(workspace)
+    const store = createFaceStore(initialized.databasePath)
+    try {
+      store.labelCluster(initialized.fixtures.clusters.label, {
+        name: "Named",
+        clientMutationId: mutationId("ignore_all_named"),
+      })
+      store.dispositionCluster(
+        initialized.fixtures.clusters.state,
+        "unknown",
+        { clientMutationId: mutationId("ignore_all_unknown") }
+      )
+      const protectedBefore = {
+        labeled: store.cluster(initialized.fixtures.clusters.label),
+        unknown: store.cluster(initialized.fixtures.clusters.state),
+      }
+
+      const result = store.ignoreUnreviewedClusters({
+        clientMutationId: mutationId("ignore_all_apply"),
+      })
+      assert.equal(result.targetClusterCount, 5)
+      assert.equal(result.ignoredClusterCount, 5)
+      assert.equal(result.preservedUnknownClusterCount, 0)
+      assert.equal(result.ignoredFaceCount, 6)
+      assert.equal(result.preservedUnknownFaceCount, 0)
+      assert.equal(result.preservedIgnoredFaceCount, 0)
+
+      const summary = store.bootstrap({ status: "all" }).summary
+      assert.equal(summary.unreviewedClusters, 0)
+      assert.equal(summary.ignoredClusters, 5)
+      assert.equal(summary.labeledClusters, 1)
+      assert.equal(summary.unknownClusters, 1)
+      assert.equal(summary.remainingFaces, 0)
+      assert.equal(summary.ignoredFaces, 6)
+      assert.equal(summary.labeledFaces, 1)
+      assert.equal(summary.unknownFaces, 2)
+      assert.deepEqual(
+        store.cluster(initialized.fixtures.clusters.label),
+        protectedBefore.labeled
+      )
+      assert.deepEqual(
+        store.cluster(initialized.fixtures.clusters.state),
+        protectedBefore.unknown
+      )
+
+      const action = databaseRow(
+        initialized,
+        "SELECT * FROM actions WHERE id=?",
+        [result.actionId]
+      )
+      assert.equal(action.action_type, "ignore_all_unreviewed_clusters")
+      const inverse = JSON.parse(action.inverse_json)
+      assert.equal(inverse.clusters.length, 5)
+      assert.equal(inverse.faces.length, 6)
+      assert.equal(
+        databaseRow(
+          initialized,
+          "SELECT action_high_watermark AS value FROM workspace WHERE id=1"
+        ).value,
+        result.actionId
+      )
+
+      assert.deepEqual(store.undo(), {
+        undone: true,
+        actionType: "ignore_all_unreviewed_clusters",
+      })
+      const restored = store.bootstrap({ status: "all" }).summary
+      assert.equal(restored.unreviewedClusters, 5)
+      assert.equal(restored.ignoredClusters, 0)
+      assert.equal(restored.labeledClusters, 1)
+      assert.equal(restored.unknownClusters, 1)
+      assert.equal(restored.remainingFaces, 6)
+      assert.equal(restored.labeledFaces, 1)
+      assert.equal(restored.unknownFaces, 2)
+      assert.deepEqual(
+        store.cluster(initialized.fixtures.clusters.label),
+        protectedBefore.labeled
+      )
+      assert.deepEqual(
+        store.cluster(initialized.fixtures.clusters.state),
+        protectedBefore.unknown
+      )
+    } finally {
+      store.close()
+      assertTestWorkspace(workspace)
+      await rm(workspace, { recursive: true, force: true })
+    }
+  }
+)
+
+test(
+  "refuses ignore-all when an unreviewed cluster contains a labeled face",
+  { concurrency: false, timeout: 20_000 },
+  async () => {
+    const workspace = await mkdtemp(
+      path.join(TEST_ROOT, "ignore-all-conflict-")
+    )
+    assertTestWorkspace(workspace)
+    const initialized = await initializeDatabase(workspace)
+    const store = createFaceStore(initialized.databasePath)
+    try {
+      const clusterId = initialized.fixtures.clusters.split
+      store.labelCluster(clusterId, {
+        name: "Conflict",
+        clientMutationId: mutationId("ignore_all_conflict_label"),
+      })
+      const database = new DatabaseSync(initialized.databasePath)
+      try {
+        database
+          .prepare(
+            `UPDATE clusters
+             SET status='unreviewed', person_id=NULL
+             WHERE id=?`
+          )
+          .run(clusterId)
+      } finally {
+        database.close()
+      }
+      const before = databaseRow(
+        initialized,
+        "SELECT count(*) AS count FROM actions"
+      ).count
+      assert.throws(
+        () =>
+          store.ignoreUnreviewedClusters({
+            clientMutationId: mutationId("ignore_all_conflict_apply"),
+          }),
+        /contain labeled faces/
+      )
+      assert.equal(
+        databaseRow(
+          initialized,
+          "SELECT count(*) AS count FROM actions"
+        ).count,
+        before
+      )
+      assert.equal(
+        databaseRow(
+          initialized,
+          "SELECT status FROM clusters WHERE id=?",
+          [clusterId]
+        ).status,
+        "unreviewed"
+      )
+      assert.deepEqual(
+        databaseRows(
+          initialized,
+          "SELECT DISTINCT status FROM faces WHERE cluster_id=?",
+          [clusterId]
+        ).map((row) => row.status),
+        ["labeled"]
+      )
+    } finally {
+      store.close()
+      assertTestWorkspace(workspace)
+      await rm(workspace, { recursive: true, force: true })
+    }
+  }
+)
+
+test(
+  "ignore-all CLI checkpoints a verified backup before applying",
+  { concurrency: false, timeout: 20_000 },
+  async () => {
+    const workspace = await mkdtemp(
+      path.join(TEST_ROOT, "ignore-all-cli-")
+    )
+    assertTestWorkspace(workspace)
+    const initialized = await initializeDatabase(workspace)
+    try {
+      const result = await runIgnoreUnreviewed({
+        workspace,
+        apply: true,
+      })
+      assert.equal(result.applied, true)
+      assert.equal(result.before.clusters.unreviewed, 7)
+      assert.equal(result.before.faces.unreviewed, 9)
+      assert.equal(result.after.clusters.unreviewed, 0)
+      assert.equal(result.after.clusters.ignored, 7)
+      assert.equal(result.after.faces.unreviewed, 0)
+      assert.equal(result.after.faces.ignored, 9)
+      assert.equal(result.mutation.targetClusterCount, 7)
+      assert.equal(result.mutation.ignoredFaceCount, 9)
+      assert.equal(result.checks.protectedIdentityHashUnchanged, true)
+      assert.deepEqual(result.checks.integrity, ["ok"])
+      assert.equal(result.checks.foreignKeyViolationCount, 0)
+      assert.equal(
+        path.dirname(result.backupPath),
+        path.join(workspace, "backups")
+      )
+      assert.equal((await stat(result.backupPath)).mode & 0o777, 0o600)
+      assert.equal(
+        databaseRow(
+          { databasePath: result.backupPath },
+          "SELECT count(*) AS count FROM clusters WHERE status='unreviewed'"
+        ).count,
+        7
+      )
+      assert.equal(
+        databaseRow(
+          initialized,
+          "SELECT action_type FROM actions WHERE id=?",
+          [result.actionId]
+        ).action_type,
+        "ignore_all_unreviewed_clusters"
+      )
+
+      const store = createFaceStore(initialized.databasePath)
+      try {
+        assert.deepEqual(store.undo(), {
+          undone: true,
+          actionType: "ignore_all_unreviewed_clusters",
+        })
+        assert.equal(
+          store.bootstrap({ status: "all" }).summary.unreviewedClusters,
+          7
+        )
+      } finally {
+        store.close()
+      }
+    } finally {
+      assertTestWorkspace(workspace)
+      await rm(workspace, { recursive: true, force: true })
+    }
+  }
 )

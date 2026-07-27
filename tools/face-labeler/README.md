@@ -81,17 +81,43 @@ After every group is named, unknown, or ignored, preview the final counts:
 npm run faces:export
 ```
 
-Only then create the authoritative JSON and SQL files:
+Only then create the authoritative JSON, SQL, and avatar upload plan:
 
 ```bash
 npm run faces:export -- --apply
 ```
 
 The export is written inside `.media-staging/faces/export/`. It contains people
-and photo-to-person relationships only—never face crops, bounding boxes,
-embeddings, source paths, or original filenames. The generated SQL is a later
-production step: apply `database/002_photo_people.sql` first, review the export,
-and import it only when the public gallery's person filter is implemented.
+and photo-to-person relationships plus the immutable object key, SHA-256, and
+dimensions of one avatar per person. It never contains face IDs, crop paths,
+bounding boxes, landmarks, embeddings, source paths, or original filenames.
+
+Avatar selection is deterministic: the exporter chooses the highest-quality
+labeled face for each person, then uses detection score, original face size, and
+the stable face ID only as tie-breakers. Before writing anything it verifies the
+selected private crop's path, SHA-256, WebP format, and square dimensions against
+the workspace profile.
+
+The separate `avatar-upload-plan.ndjson` is private and does contain the local
+path needed by the uploader. Upload exactly those selected crops—never the whole
+crop workspace—before applying the generated SQL:
+
+```bash
+npm run faces:upload-avatars -- \
+  --profile wedding-gallery \
+  --account-id "<exact 32-character Cloudflare account id>" \
+  --wrangler ./node_modules/.bin/wrangler \
+  --apply
+```
+
+The uploader permits avatar objects only at the content-addressed path
+`wedding/people/<person-id>/avatar-<sha-prefix>.webp`, verifies the private local
+source again, and uses the same immutable cache policy and remote verification
+ledger as the gallery derivatives. Re-run the command and confirm it reports
+zero pending objects before importing metadata. Apply
+`database/002_photo_people.sql` first, review `people.json` and `people.sql`,
+then run the SQL with the temporary production import credential. Embeddings,
+landmarks, bounding boxes, and all unselected face crops remain local.
 
 ## Verification
 

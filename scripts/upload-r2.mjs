@@ -9,6 +9,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  realpath,
   rm,
   stat,
   unlink,
@@ -18,10 +19,15 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
+const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(SCRIPT_DIRECTORY, "..");
+const PRIVATE_MEDIA_ROOT = path.join(REPO_ROOT, ".media-staging");
 const PRODUCTION_BUCKET = "alex-sierra-wedding-photos";
 const PRODUCTION_PREFIX = "wedding/";
 const PRODUCTION_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const PERSON_ID_PATTERN = /^person_[a-f0-9]{32}$/;
 const WRANGLER_TARGET_OVERRIDE_VARIABLES = [
   "CLOUDFLARE_API_TOKEN",
   "CF_API_TOKEN",
@@ -35,8 +41,8 @@ const WRANGLER_TARGET_OVERRIDE_VARIABLES = [
 ];
 
 const HELP = `
-Upload an ingest upload plan to Cloudflare R2 using an already-authenticated
-Wrangler CLI. Dry-run is the default.
+Upload a verified photo-derivative or face-avatar plan to Cloudflare R2 using an
+already-authenticated Wrangler CLI. Dry-run is the default.
 
 Dry-run:
   node scripts/upload-r2.mjs \\
@@ -52,7 +58,7 @@ Upload:
     --apply
 
 Options:
-  --manifest PATH          upload-plan.ndjson from the ingest script (required)
+  --manifest PATH          Photo or private avatar upload-plan.ndjson (required)
   --profile NAME           Existing named Wrangler auth profile (required)
   --account-id ID          Exact 32-character Cloudflare account id (required)
   --concurrency N          Parallel Wrangler processes (default: 4)
@@ -84,6 +90,7 @@ async function main() {
   const manifestPath = path.resolve(options.manifest);
   const entries = await readNdjson(manifestPath);
   validateEntries(entries);
+  await validateAvatarSources(entries);
   const totalBytes = entries.reduce((sum, entry) => sum + entry.bytes, 0);
   const target = {
     accountId: options.accountId,
@@ -356,7 +363,11 @@ async function stageVerifiedObject(entry, stagingDirectory) {
     `${entry.sha256}-${randomUUID()}${extension}`,
   );
   try {
-    await copyFile(entry.local_path, stagedPath, constants.COPYFILE_EXCL);
+    const sourcePath =
+      entry.kind === "avatar"
+        ? await validateAvatarSource(entry)
+        : entry.local_path;
+    await copyFile(sourcePath, stagedPath, constants.COPYFILE_EXCL);
     const info = await stat(stagedPath).catch(() => null);
     if (!info?.isFile()) {
       throw new Error(`unable to stage local derivative: ${entry.local_path}`);
@@ -601,7 +612,6 @@ function validateEntries(entries) {
   for (const [index, entry] of entries.entries()) {
     const line = index + 1;
     for (const field of [
-      "photo_id",
       "kind",
       "object_key",
       "local_path",
@@ -626,22 +636,54 @@ function validateEntries(entries) {
     ) {
       throw new Error(`manifest line ${line} has an unsafe object key`);
     }
-    const key = entry.object_key.match(
+    const photoKey = entry.object_key.match(
       /^wedding\/([a-f0-9]{2})\/p_([a-f0-9]{32})\/(thumb|display)-([a-f0-9]{20})\.(webp|avif|jpeg)$/,
     );
-    if (!key) {
+    const avatarKey = entry.object_key.match(
+      /^wedding\/people\/(person_[a-f0-9]{32})\/avatar-([a-f0-9]{20})\.webp$/,
+    );
+    if (!photoKey && !avatarKey) {
       throw new Error(`manifest line ${line} has a non-production object key`);
     }
-    const [, shard, photoHash, kind, embeddedHash, extension] = key;
-    if (
-      shard !== photoHash.slice(0, 2) ||
-      entry.photo_id !== `p_${photoHash}` ||
-      entry.kind !== kind
-    ) {
-      throw new Error(`manifest line ${line} key identity does not match its row`);
+    let embeddedHash;
+    let extension;
+    if (photoKey) {
+      const [, shard, photoHash, kind, photoEmbeddedHash, photoExtension] =
+        photoKey;
+      embeddedHash = photoEmbeddedHash;
+      extension = photoExtension;
+      if (
+        entry.person_id != null ||
+        entry.photo_id !== `p_${photoHash}` ||
+        shard !== photoHash.slice(0, 2) ||
+        entry.kind !== kind
+      ) {
+        throw new Error(`manifest line ${line} key identity does not match its row`);
+      }
+    } else {
+      const [, personId, avatarEmbeddedHash] = avatarKey;
+      embeddedHash = avatarEmbeddedHash;
+      extension = "webp";
+      if (
+        entry.photo_id != null ||
+        !PERSON_ID_PATTERN.test(entry.person_id) ||
+        entry.person_id !== personId ||
+        entry.kind !== "avatar"
+      ) {
+        throw new Error(`manifest line ${line} key identity does not match its row`);
+      }
     }
     if (!path.isAbsolute(entry.local_path)) {
       throw new Error(`manifest line ${line} local_path must be absolute`);
+    }
+    if (
+      avatarKey &&
+      (!isPrivateAvatarCropPath(entry.local_path) ||
+        path.extname(entry.local_path).toLowerCase() !== ".webp")
+    ) {
+      throw new Error(
+        `manifest line ${line} avatar source must be a private WebP crop`,
+      );
     }
     if (!/^[a-f0-9]{64}$/.test(entry.sha256)) {
       throw new Error(`manifest line ${line} has an invalid SHA-256`);
@@ -677,6 +719,50 @@ function validateEntries(entries) {
     }
     keys.add(entry.object_key);
   }
+}
+
+async function validateAvatarSources(entries) {
+  for (const entry of entries) {
+    if (entry.kind === "avatar") await validateAvatarSource(entry);
+  }
+}
+
+async function validateAvatarSource(entry) {
+  const sourcePath = await realpath(entry.local_path).catch(() => null);
+  if (!sourcePath || !isPrivateAvatarCropPath(sourcePath)) {
+    throw new Error(
+      `avatar source is missing or outside the private media workspace: ${entry.local_path}`,
+    );
+  }
+  const info = await stat(sourcePath).catch(() => null);
+  if (!info?.isFile()) {
+    throw new Error(`avatar source is not a regular file: ${entry.local_path}`);
+  }
+  if (info.size !== entry.bytes) {
+    throw new Error(
+      `avatar source size mismatch: expected ${entry.bytes}, found ${info.size}`,
+    );
+  }
+  const actual = await hashFile(sourcePath);
+  if (actual !== entry.sha256) {
+    throw new Error(
+      `avatar source SHA-256 mismatch: expected ${entry.sha256}, found ${actual}`,
+    );
+  }
+  return sourcePath;
+}
+
+function isPrivateAvatarCropPath(candidate) {
+  const absolute = path.resolve(candidate);
+  const relative = path.relative(PRIVATE_MEDIA_ROOT, absolute);
+  if (
+    !relative ||
+    relative.startsWith("..") ||
+    path.isAbsolute(relative)
+  ) {
+    return false;
+  }
+  return relative.split(path.sep).includes("crops");
 }
 
 async function assertExecutable(command) {

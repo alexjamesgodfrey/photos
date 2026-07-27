@@ -14,8 +14,10 @@
     "faces:setup": "node tools/face-labeler/setup.mjs",
     "faces:analyze": ".media-staging/faces/.venv/bin/python tools/face-labeler/analyze.py",
     "faces:label": "node tools/face-labeler/server.mjs",
+    "faces:ignore-unreviewed": "node tools/face-labeler/ignore-unreviewed.mjs",
     "faces:export": "node tools/face-labeler/export.mjs",
-    "test:faces": "node --test tests/face-labeler.test.mjs",
+    "faces:upload-avatars": "node scripts/upload-r2.mjs --manifest .media-staging/faces/export/avatar-upload-plan.ndjson",
+    "test:faces": "node --test tests/face-labeler.test.mjs tests/face-export.test.mjs",
     "worker:check": "wrangler deploy --dry-run --config cloudflare/wrangler.jsonc"
   },
   "dependencies": {

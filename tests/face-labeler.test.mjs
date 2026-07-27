@@ -769,7 +769,7 @@ test(
 )
 
 test(
-  "labels a cluster and fully undoes the committed mutation",
+  "normalizes labels to a unique first name and fully undoes the mutation",
   { concurrency: false, timeout: 20_000 },
   async () =>
     withHarness("label-undo", async (harness) => {
@@ -786,7 +786,7 @@ test(
       const labeled = await expectJson(labelResponse, 200)
       assert.equal(labeled.id, clusterId)
       assert.equal(labeled.status, "labeled")
-      assert.equal(labeled.displayName, "Alex Example")
+      assert.equal(labeled.displayName, "Alex")
       assert.ok(labeled.personId)
 
       const duplicateLabel = await expectJson(
@@ -794,7 +794,7 @@ test(
           harness,
           `/api/clusters/${clusterId}/label`,
           {
-            name: "Alex Example",
+            name: "Alex AnotherSurname",
             clientMutationId: mutationId("duplicate_label"),
           }
         ),
@@ -803,7 +803,23 @@ test(
       assert.equal(duplicateLabel.noOp, true)
       assert.equal(duplicateLabel.id, clusterId)
       assert.equal(duplicateLabel.status, "labeled")
+      assert.equal(duplicateLabel.displayName, "Alex")
       assert.equal(duplicateLabel.personId, labeled.personId)
+
+      const numberedDuplicate = await expectJson(
+        await postJson(
+          harness,
+          `/api/clusters/${clusterId}/label`,
+          {
+            name: "Alex3",
+            clientMutationId: mutationId("numbered_duplicate_label"),
+          }
+        ),
+        200
+      )
+      assert.equal(numberedDuplicate.noOp, true)
+      assert.equal(numberedDuplicate.displayName, "Alex")
+      assert.equal(numberedDuplicate.personId, labeled.personId)
       assert.equal(
         databaseRow(
           harness,
@@ -907,6 +923,7 @@ test(
         200
       )
       assert.equal(labeledWithIgnored.status, "labeled")
+      assert.equal(labeledWithIgnored.displayName, "Ignored")
       assert.equal(labeledWithIgnored.representativeFaceId, usableFaceId)
       assert.deepEqual(
         databaseRows(
@@ -994,6 +1011,7 @@ test(
         200
       )
       assert.equal(labeledWithUnknown.status, "labeled")
+      assert.equal(labeledWithUnknown.displayName, "Unknown")
       assert.equal(
         labeledWithUnknown.representativeFaceId,
         secondUsableFaceId
@@ -1210,6 +1228,7 @@ test(
         200
       )
       assert.equal(labeled.status, "labeled")
+      assert.equal(labeled.displayName, "Split")
       assert.ok(labeled.personId)
 
       const clusterBeforeSplitRow = databaseRow(

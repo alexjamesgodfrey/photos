@@ -49,7 +49,8 @@ Start with the largest groups in **To review**:
 3. Select and split faces that belong to someone else.
 4. Ignore false detections such as shoes, flowers, or blurred objects.
 5. Mark a real but unidentifiable face or group **Unknown**.
-6. Type a person's name and save the remaining group.
+6. Type the person's unique first name and save the remaining group. Reusing
+   that first name attaches later groups to the same person.
 7. Select multiple groups and merge them only when they are the same person.
 
 Every change is transactional and recorded in the local action log. **Undo**

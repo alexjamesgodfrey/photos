@@ -891,10 +891,11 @@ function uniqueIds(value, kind) {
 function normalizeDisplayName(value) {
   if (typeof value !== "string") throw badRequest("Name is required")
   const normalized = value.normalize("NFKC").trim().replace(/\s+/g, " ")
-  if (!normalized || normalized.length > 120) {
-    throw badRequest("Name must be between 1 and 120 characters")
+  const firstName = normalized.split(" ")[0].replace(/\d+$/u, "")
+  if (!firstName || firstName.length > 120) {
+    throw badRequest("First name must be between 1 and 120 characters")
   }
-  return normalized
+  return firstName
 }
 
 function normalizeNameKey(value) {

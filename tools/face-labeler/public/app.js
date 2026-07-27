@@ -1054,18 +1054,19 @@
   async function saveLabel(event) {
     event.preventDefault();
     if (!state.activeClusterId) return;
-    const name = elements.personName.value.trim().replace(/\s+/g, " ");
-    if (!name) {
+    const inputName = elements.personName.value.trim().replace(/\s+/g, " ");
+    const firstName = inputName.split(" ")[0].replace(/\d+$/u, "");
+    if (!firstName) {
       elements.personName.focus();
-      showError(new Error("Enter a name before saving."));
+      showError(new Error("Enter a first name before saving."));
       return;
     }
     await mutateCluster(
       `/api/clusters/${encodeURIComponent(state.activeClusterId)}/label`,
-      { name },
+      { name: firstName },
       {
         button: elements.saveLabel,
-        successMessage: `${name} saved.`,
+        successMessage: `${firstName} saved.`,
         preserveActive: state.filter !== "unreviewed",
       },
     );

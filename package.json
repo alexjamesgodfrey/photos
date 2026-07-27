@@ -11,6 +11,11 @@
     "media:ingest": "node scripts/ingest-wedding-photos.mjs",
     "media:sql": "node scripts/generate-db-import.mjs",
     "media:upload": "node scripts/upload-r2.mjs",
+    "faces:setup": "node tools/face-labeler/setup.mjs",
+    "faces:analyze": ".media-staging/faces/.venv/bin/python tools/face-labeler/analyze.py",
+    "faces:label": "node tools/face-labeler/server.mjs",
+    "faces:export": "node tools/face-labeler/export.mjs",
+    "test:faces": "node --test tests/face-labeler.test.mjs",
     "worker:check": "wrangler deploy --dry-run --config cloudflare/wrangler.jsonc"
   },
   "dependencies": {

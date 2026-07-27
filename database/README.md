@@ -33,3 +33,16 @@ replaying the same complete manifest is safe and a new album is not exposed
 partially. The final transaction verifies the staged count, publishes the run,
 updates aggregates, and marks it complete. Apply the schema migration before
 any generated batch.
+
+## Human-reviewed person labels
+
+`002_photo_people.sql` prepares the production-only relationship tables used by
+a future person filter:
+
+- `wedding_photos.people`
+- `wedding_photos.photo_people`
+
+Do not apply or import this data merely to run the local labeler. Finish the
+human review first, validate the private export, then apply the migration before
+importing the generated SQL. Production receives names and photo associations
+only; face crops, embeddings, landmarks, and bounding boxes remain local.

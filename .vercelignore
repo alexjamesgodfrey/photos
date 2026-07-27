@@ -1,0 +1,8 @@
+.media-staging/
+cloudflare/
+database/
+docs/
+scripts/
+tests/
+.env*
+*.tsbuildinfo

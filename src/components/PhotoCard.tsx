@@ -1,198 +1,157 @@
-"use client"
+"use client";
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { categories } from "@/lib/constants" // reuse same list
-import { useSupabase } from "@/lib/hooks/useSupabase"
-import { Download, MoreVertical, Trash2 } from "lucide-react"
-import Image from "next/image"
-import { useState } from "react"
+import { Expand, ImageIcon } from "lucide-react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+
+export interface GalleryPhoto {
+  id: string;
+  thumbUrl: string;
+  displayUrl: string;
+  width: number;
+  height: number;
+  capturedAt: string | null;
+  filename: string;
+  blurDataUrl?: string | null;
+}
 
 export interface PhotoCardProps {
-  photo: {
-    id: string
-    src: string
-    fullSrc: string
-    uploader: string
-    category: string
-    timestamp: string
-    filePath: string // we’ll pass this so we can delete it
-  }
-  isOwner: boolean
-  onUpdated?: (p: PhotoCardProps["photo"]) => void
-  onDeleted?: (id: string) => void
+  photo: GalleryPhoto;
+  index: number;
+  total?: number;
+  onOpen: (photo: GalleryPhoto) => void;
+  onMediaError?: () => void;
+  style?: CSSProperties;
+}
+
+function formatCapturedAt(value: string | null) {
+  if (!value) return "Wedding day";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Wedding day";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+interface ImageState {
+  url: string;
+  loaded: boolean;
+  failed: boolean;
 }
 
 export function PhotoCard({
   photo,
-  isOwner,
-  onUpdated,
-  onDeleted,
+  index,
+  total,
+  onOpen,
+  onMediaError,
+  style,
 }: PhotoCardProps) {
-  const { supabase } = useSupabase()
-  const [busy, setBusy] = useState(false)
+  const [imageState, setImageState] = useState<ImageState>(() => ({
+    url: photo.thumbUrl,
+    loaded: false,
+    failed: false,
+  }));
+  const reportedFailureUrl = useRef<string | null>(null);
 
-  /* ───────── owner actions ───────── */
-  const changeCategory = async (cat: string) => {
-    if (cat === photo.category) return
-    setBusy(true)
-    const { error } = await supabase
-      .from("wedding_uploads")
-      .update({ category: cat })
-      .eq("id", photo.id)
-      .single()
-    setBusy(false)
-    if (!error && onUpdated) onUpdated({ ...photo, category: cat })
-  }
+  const imageStateIsCurrent = imageState.url === photo.thumbUrl;
+  const loaded = imageStateIsCurrent && imageState.loaded;
+  const failed = imageStateIsCurrent && imageState.failed;
 
-  const deletePhoto = async () => {
-    if (!confirm("Delete this photo permanently?")) return
-    setBusy(true)
-    await supabase.storage.from("wedding").remove([photo.filePath])
-    await supabase.from("wedding_uploads").delete().eq("id", photo.id)
-    setBusy(false)
-    if (onDeleted) onDeleted(photo.id)
-  }
+  useEffect(() => {
+    setImageState((current) =>
+      current.url === photo.thumbUrl
+        ? current
+        : { url: photo.thumbUrl, loaded: false, failed: false },
+    );
+    reportedFailureUrl.current = null;
+  }, [photo.thumbUrl]);
 
-  /* ───────── download helper ──────── */
-  const download = async () => {
-    const res = await fetch(photo.fullSrc)
-    const blob = await res.blob()
+  const safeWidth = photo.width > 0 ? photo.width : 4;
+  const safeHeight = photo.height > 0 ? photo.height : 5;
+  const intrinsicHeight = Math.round((400 * safeHeight) / safeWidth);
 
-    /* 1️⃣ Try Web Share API with a File, so the user may pick “Save Image” */
-    if (navigator.canShare?.({ files: [] })) {
-      const file = new File(
-        [blob],
-        photo.fullSrc.split("/").pop() ?? "photo.jpg",
-        {
-          type: blob.type,
-        }
-      )
-      try {
-        await navigator.share({ files: [file], title: "Wedding photo" })
-        return // success or user cancelled – either way we’re done
-      } catch {
-        /* fall through on error/cancel */
-      }
-    }
+  const cardStyle: CSSProperties = {
+    ...style,
+    animationDelay: `${Math.min(index, 12) * 35}ms`,
+    contentVisibility: "auto",
+    containIntrinsicSize: `400px ${intrinsicHeight}px`,
+  };
 
-    /* 2️⃣ Fallback: trigger a regular download (drops into Files) */
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = photo.fullSrc.split("/").pop() ?? "photo.jpg"
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  }
-
-  const getDayString = (timestamp: string) => {
-    const dayOfWeek = new Date(timestamp).toLocaleDateString("en-US", {
-      weekday: "long",
-    })
-    const month = new Date(timestamp).toLocaleDateString("en-US", {
-      month: "long",
-    })
-    const day = new Date(timestamp).toLocaleDateString("en-US", {
-      day: "numeric",
-    })
-
-    if (month === "July" && parseInt(day) <= 12) {
-      return `${dayOfWeek}`
-    }
-
-    return new Date(timestamp).toLocaleString()
-  }
-
-  const CatIcon =
-    categories.find((c) => c.value === photo.category)?.icon ?? Download
+  const mediaStyle: CSSProperties = {
+    aspectRatio: `${safeWidth} / ${safeHeight}`,
+    backgroundImage: photo.blurDataUrl
+      ? `url("${photo.blurDataUrl.replaceAll('"', '\\"')}")`
+      : undefined,
+  };
 
   return (
-    <div className="overflow-hidden rounded-xl shadow-sm relative text-black">
-      <div className="relative aspect-[3/4] bg-gray-100">
-        <Image
-          src={photo.fullSrc}
-          alt={`Photo by ${photo.uploader}`}
-          fill
-          sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
-          className="object-cover"
-          placeholder="empty"
-          quality={100}
-        />
-        {/* badge */}
-        <div className="absolute top-2 right-2">
-          <Badge variant="secondary" className="text-xs">
-            <CatIcon className="h-3 w-3 mr-1" /> {photo.category}
-          </Badge>
-        </div>
-      </div>
+    <article className="gallery-card" style={cardStyle}>
+      <button
+        type="button"
+        className="gallery-card__button"
+        onClick={() => onOpen(photo)}
+        aria-label={`Open photograph ${index + 1}${
+          typeof total === "number" ? ` of ${total}` : ""
+        }`}
+      >
+        <span className="gallery-card__media" style={mediaStyle}>
+          {!failed ? (
+            <img
+              key={photo.thumbUrl}
+              src={photo.thumbUrl}
+              alt=""
+              aria-hidden="true"
+              width={safeWidth}
+              height={safeHeight}
+              loading={index < 6 ? "eager" : "lazy"}
+              fetchPriority={index < 3 ? "high" : "auto"}
+              decoding="async"
+              className={`gallery-card__image ${loaded ? "is-loaded" : ""}`}
+              onLoad={() =>
+                setImageState({
+                  url: photo.thumbUrl,
+                  loaded: true,
+                  failed: false,
+                })
+              }
+              onError={() => {
+                setImageState({
+                  url: photo.thumbUrl,
+                  loaded: false,
+                  failed: true,
+                });
 
-      <div className="p-3 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{photo.uploader}</p>
-          <p className="text-xs text-gray-500 truncate">
-            {getDayString(photo.timestamp)}
-          </p>
-        </div>
+                if (reportedFailureUrl.current !== photo.thumbUrl) {
+                  reportedFailureUrl.current = photo.thumbUrl;
+                  onMediaError?.();
+                }
+              }}
+            />
+          ) : (
+            <span className="gallery-card__fallback" aria-hidden="true">
+              <ImageIcon aria-hidden="true" />
+              <span>Image unavailable</span>
+            </span>
+          )}
 
-        {/* action menu */}
-        {!isOwner ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={busy}
-            onClick={download}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={busy}>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
+          {!loaded && !failed && (
+            <span className="gallery-card__shimmer" aria-hidden="true" />
+          )}
 
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={download}>
-                <Download className="h-4 w-4 mr-2" /> Save
-              </DropdownMenuItem>
-
-              {isOwner && (
-                <>
-                  <DropdownMenuSeparator />
-                  {categories
-                    .filter((c) => c.value !== photo.category)
-                    .map((c) => (
-                      <DropdownMenuItem
-                        key={c.value}
-                        onClick={() => changeCategory(c.value)}
-                      >
-                        <c.icon className="h-4 w-4 mr-2" /> {c.label}
-                      </DropdownMenuItem>
-                    ))}
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600"
-                    onClick={deletePhoto}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-    </div>
-  )
+          <span className="gallery-card__scrim" aria-hidden="true" />
+          <span className="gallery-card__meta">
+            <span>{formatCapturedAt(photo.capturedAt)}</span>
+            <span className="gallery-card__expand">
+              <Expand aria-hidden="true" />
+              <span className="sr-only">View larger</span>
+            </span>
+          </span>
+        </span>
+      </button>
+    </article>
+  );
 }

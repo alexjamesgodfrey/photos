@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "alex-sierra-wedding-media",
+  "main": "media-worker.mjs",
+  "compatibility_date": "2026-07-27",
+  "keep_vars": true,
+  "workers_dev": true,
+  "vars": {
+    "MEDIA_CACHE_SCHEMA_VERSION": "v1"
+  },
+  "cache": {
+    "enabled": true,
+    "cross_version_cache": true
+  },
+  "exports": {
+    "default": {
+      "type": "worker",
+      "cache": {
+        "enabled": false
+      }
+    },
+    "MediaObject": {
+      "type": "worker",
+      "cache": {
+        "enabled": true
+      }
+    }
+  },
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "alex-sierra-wedding-photos"
+    }
+  ]
+}

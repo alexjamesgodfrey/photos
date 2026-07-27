@@ -1,26 +1,25 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.985 0.006 82);
+  --foreground: oklch(0.22 0.015 55);
   --radius: 0.625rem;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.18 0.015 55);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.18 0.015 55);
+  --primary: oklch(0.31 0.033 59);
+  --primary-foreground: oklch(0.985 0.006 82);
+  --secondary: oklch(0.955 0.012 80);
+  --secondary-foreground: oklch(0.25 0.02 58);
+  --muted: oklch(0.955 0.009 80);
+  --muted-foreground: oklch(0.49 0.018 58);
+  --accent: oklch(0.94 0.022 73);
+  --accent-foreground: oklch(0.25 0.02 58);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.88 0.015 78);
+  --input: oklch(0.88 0.015 78);
+  --ring: oklch(0.61 0.06 68);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -34,6 +33,15 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --wedding-ink: #26231f;
+  --wedding-muted: #6e675e;
+  --wedding-paper: #f7f3ec;
+  --wedding-cream: #fffaf2;
+  --wedding-brass: #a47b51;
+  --wedding-brass-dark: #815d3f;
+  --wedding-green: #34433a;
+  --wedding-line: rgba(49, 43, 36, 0.14);
+  --wedding-muted-strong: #655e56;
 }
 
 @theme inline {
@@ -76,64 +84,1598 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-.dark {
-  --background: white;
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
   }
+
+  html {
+    background: var(--wedding-paper);
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply text-foreground;
+    min-height: 100%;
+    margin: 0;
+    background: var(--wedding-paper);
+    color: var(--wedding-ink);
+    font-family: Arial, Helvetica, sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+
+  button,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: rgba(164, 123, 81, 0.24);
   }
 }
 
-html,
-body {
-  @apply bg-white text-black;
+/* Private entrance */
+
+.access-page {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      circle at 78% 20%,
+      rgba(209, 172, 128, 0.3),
+      transparent 33%
+    ),
+    radial-gradient(
+      circle at 22% 82%,
+      rgba(103, 130, 108, 0.38),
+      transparent 38%
+    ),
+    linear-gradient(135deg, #18231d 0%, #354238 48%, #79614c 100%);
+  color: #fffaf2;
+}
+
+.access-page__wash,
+.access-page__grain {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+}
+
+.access-page__wash {
+  z-index: -2;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(21, 28, 24, 0.87) 0%,
+      rgba(28, 30, 25, 0.69) 48%,
+      rgba(28, 25, 21, 0.5) 100%
+    ),
+    linear-gradient(0deg, rgba(18, 20, 18, 0.32), transparent 55%);
+}
+
+.access-page__grain {
+  z-index: -1;
+  opacity: 0.32;
+  background-image:
+    radial-gradient(
+      circle at 18% 12%,
+      rgba(255, 255, 255, 0.08) 0 1px,
+      transparent 1.5px
+    ),
+    radial-gradient(
+      circle at 72% 64%,
+      rgba(0, 0, 0, 0.12) 0 1px,
+      transparent 1.5px
+    );
+  background-size:
+    5px 5px,
+    7px 7px;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.access-shell {
+  align-self: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
+  gap: clamp(3rem, 9vw, 8.5rem);
+  align-items: center;
+  width: min(1180px, calc(100% - 3rem));
+  margin: 3rem auto 5rem;
+}
+
+.access-story {
+  max-width: 650px;
+  animation: access-copy-arrive 750ms 120ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.access-monogram,
+.gallery-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.72rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.17em;
+}
+
+.access-monogram i,
+.gallery-brand i {
+  display: block;
+  width: 2.25rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.48;
+}
+
+.access-eyebrow,
+.access-card__eyebrow,
+.gallery-hero__eyebrow {
+  margin: 2.4rem 0 1rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.access-eyebrow {
+  color: rgba(255, 250, 242, 0.72);
+}
+
+.access-story h1 {
+  margin: 0;
+  max-width: 730px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3.15rem, 6.5vw, 6.7rem);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: -0.052em;
+  text-wrap: balance;
+}
+
+.access-intro {
+  max-width: 500px;
+  margin: 1.7rem 0 0;
+  color: rgba(255, 250, 242, 0.76);
+  font-size: clamp(0.98rem, 1.5vw, 1.12rem);
+  line-height: 1.65;
+}
+
+.access-card {
+  position: relative;
+  padding: clamp(1.8rem, 3.5vw, 2.7rem);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 1.6rem;
+  background: rgba(255, 251, 245, 0.93);
+  box-shadow:
+    0 36px 90px rgba(11, 15, 12, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  color: var(--wedding-ink);
+  backdrop-filter: blur(18px);
+  animation: access-card-arrive 760ms 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.access-card__icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #eee4d5;
+  color: #75593d;
+}
+
+.access-card__icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.access-card__eyebrow {
+  margin: 1.5rem 0 0.6rem;
+  color: #8b7056;
+}
+
+.access-card h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 4vw, 2.65rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.access-card__copy {
+  margin: 0.9rem 0 0;
+  color: var(--wedding-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.access-form {
+  margin-top: 1.65rem;
+}
+
+.access-form > label {
+  display: block;
+  margin-bottom: 0.48rem;
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.access-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  height: 3.5rem;
+  border: 1px solid rgba(59, 50, 40, 0.2);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.access-input:focus-within {
+  border-color: #9a744f;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(164, 123, 81, 0.14);
+}
+
+.access-input.has-error {
+  border-color: #a8564f;
+  box-shadow: 0 0 0 4px rgba(168, 86, 79, 0.1);
+}
+
+.access-input > svg {
+  width: 1rem;
+  height: 1rem;
+  margin-left: 1rem;
+  color: #85796c;
+}
+
+.access-input input {
+  width: 100%;
   height: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 0 0.8rem;
+  background: transparent;
+  color: var(--wedding-ink);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.access-input input::placeholder {
+  color: #9a9288;
+}
+
+.access-input__reveal {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-right: 0.36rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.68rem;
+  background: transparent;
+  color: #6f685f;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.access-input__reveal:hover {
+  background: #f1e9de;
+  color: #352e27;
+}
+
+.access-input__reveal:focus-visible {
+  outline: 2px solid #9a744f;
+  outline-offset: 1px;
+}
+
+.access-input__reveal svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.access-form__message {
+  min-height: 2.2rem;
+  padding: 0.48rem 0.12rem 0;
+}
+
+.access-form__message p {
+  margin: 0;
+  color: #8a8279;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.access-form__message .access-error {
+  color: #9b423d;
+}
+
+.access-submit {
+  display: flex;
+  width: 100%;
+  height: 3.55rem;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #2d3c34;
+  border-radius: 0.9rem;
+  padding: 0 1.15rem 0 1.25rem;
+  background: var(--wedding-green);
+  box-shadow: 0 8px 24px rgba(45, 60, 52, 0.18);
+  color: #fffaf2;
+  font-size: 0.89rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.access-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #29382f;
+  box-shadow: 0 12px 28px rgba(45, 60, 52, 0.25);
+}
+
+.access-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.access-submit:focus-visible {
+  outline: 3px solid rgba(164, 123, 81, 0.45);
+  outline-offset: 3px;
+}
+
+.access-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
+.access-submit svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.access-submit__loader,
+.gallery-logout__loader {
+  animation: spin 850ms linear infinite;
+}
+
+.access-card__privacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  margin: 1.2rem 0 0;
+  color: #8a8278;
+  font-size: 0.69rem;
+  text-align: center;
+}
+
+.access-card__privacy svg {
+  width: 0.76rem;
+  height: 0.76rem;
+}
+
+.access-date {
+  position: absolute;
+  right: 1.8rem;
+  bottom: 1.35rem;
+  margin: 0;
+  color: rgba(255, 250, 242, 0.62);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+/* Gallery shell */
+
+.gallery-page {
+  min-height: 100svh;
+  overflow-x: clip;
+  background:
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(220, 199, 169, 0.2),
+      transparent 28rem
+    ),
+    var(--wedding-paper);
+  color: var(--wedding-ink);
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  transform: translateY(-180%);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--wedding-green);
+  color: white;
+  font-size: 0.82rem;
+  transition: transform 150ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.gallery-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 4.8rem;
+  border-bottom: 1px solid rgba(62, 52, 42, 0.11);
+  background: rgba(247, 243, 236, 0.83);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.gallery-header__inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: min(1640px, calc(100% - 3rem));
+  height: 100%;
+  margin: 0 auto;
+}
+
+.gallery-brand {
+  width: max-content;
+  color: var(--wedding-ink);
+  text-decoration: none;
+}
+
+.gallery-brand:focus-visible,
+.gallery-logout:focus-visible,
+.gallery-sort:focus-within,
+.gallery-to-top:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: 4px;
+}
+
+.gallery-header__title {
+  text-align: center;
+}
+
+.gallery-header__title p,
+.gallery-header__title h1 {
+  margin: 0;
+}
+
+.gallery-header__title p {
+  color: var(--wedding-brass-dark);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.67rem;
+  font-style: italic;
+}
+
+.gallery-header__title h1 {
+  margin-top: 0.15rem;
+  font-size: 0.74rem;
+  font-weight: 660;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gallery-logout {
+  display: inline-flex;
+  justify-self: end;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.6rem;
+  border: 1px solid var(--wedding-line);
+  border-radius: 999px;
+  padding: 0 0.95rem;
+  background: rgba(255, 255, 255, 0.42);
+  color: #514b44;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 170ms ease,
+    background-color 170ms ease,
+    border-color 170ms ease;
+}
+
+.gallery-logout:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(100, 76, 51, 0.3);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.gallery-logout:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
+.gallery-logout svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.gallery-hero {
+  width: min(1050px, calc(100% - 3rem));
+  margin: 0 auto;
+  padding: clamp(5.5rem, 10vw, 10rem) 0 clamp(4.2rem, 8vw, 7rem);
+  text-align: center;
+}
+
+.gallery-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1.35rem;
+  color: #8a6748;
+}
+
+.gallery-hero__eyebrow svg {
+  width: 0.84rem;
+  height: 0.84rem;
+}
+
+.gallery-hero h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3.2rem, 7.4vw, 7rem);
+  font-weight: 400;
+  line-height: 0.93;
+  letter-spacing: -0.055em;
+}
+
+.gallery-hero > p:last-child {
+  max-width: 540px;
+  margin: 1.75rem auto 0;
+  color: var(--wedding-muted);
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
+  line-height: 1.72;
+}
+
+.gallery-toolbar {
+  position: sticky;
+  top: 4.8rem;
+  z-index: 25;
+  border-top: 1px solid var(--wedding-line);
+  border-bottom: 1px solid var(--wedding-line);
+  background: rgba(247, 243, 236, 0.88);
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+
+.gallery-toolbar__inner {
+  display: flex;
+  width: min(1640px, calc(100% - 3rem));
+  min-height: 4.1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+}
+
+.gallery-count {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--wedding-muted-strong);
+  font-size: 0.74rem;
+  font-weight: 570;
+}
+
+.gallery-count svg {
+  width: 1rem;
+  height: 1rem;
+  color: #a17b55;
+}
+
+.gallery-sort {
+  position: relative;
+  display: flex;
+  min-width: 11.6rem;
+  height: 2.75rem;
+  align-items: center;
+  border: 1px solid var(--wedding-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.47);
+  color: #4e4841;
+  cursor: pointer;
+}
+
+.gallery-sort > svg:first-child {
+  position: absolute;
+  left: 0.95rem;
+  width: 0.88rem;
+  height: 0.88rem;
+  pointer-events: none;
+}
+
+.gallery-sort select {
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  padding: 0 2.4rem 0 2.35rem;
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.gallery-sort__chevron {
+  position: absolute;
+  right: 0.85rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  pointer-events: none;
+}
+
+.gallery-content {
+  width: min(1640px, calc(100% - 3rem));
+  min-height: 60vh;
+  margin: 0 auto;
+  padding: clamp(2rem, 3.5vw, 3.5rem) 0 6rem;
+  scroll-margin-top: 9.5rem;
+}
+
+.gallery-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.55rem, 1vw, 1.05rem);
+}
+
+.gallery-albums {
+  display: grid;
+  gap: clamp(0.55rem, 1vw, 1.05rem);
+}
+
+.gallery-album-page {
+  overflow: visible;
+}
+
+.gallery-card {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  animation: gallery-card-arrive 560ms cubic-bezier(0.18, 0.75, 0.2, 1) forwards;
+}
+
+.gallery-card__button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0.95rem;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+  cursor: zoom-in;
+}
+
+.gallery-card__button:focus-visible {
+  outline: 3px solid var(--wedding-brass);
+  outline-offset: 4px;
+}
+
+.gallery-card__media {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background-color: #e8e0d4;
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  isolation: isolate;
+}
+
+.gallery-card__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.015);
+  transition:
+    opacity 400ms ease,
+    transform 650ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+.gallery-card__image.is-loaded {
+  opacity: 1;
+}
+
+.gallery-card__button:hover .gallery-card__image {
+  transform: scale(1.045);
+}
+
+.gallery-card__shimmer,
+.gallery-skeleton {
+  background:
+    linear-gradient(
+      105deg,
+      transparent 37%,
+      rgba(255, 255, 255, 0.48) 48%,
+      transparent 59%
+    ),
+    #e7ded1;
+  background-size:
+    220% 100%,
+    100% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+.gallery-card__shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.gallery-card__scrim {
+  position: absolute;
+  inset: 50% 0 0;
+  z-index: 2;
+  background: linear-gradient(
+    transparent 32%,
+    rgba(15, 15, 13, 0.84)
+  );
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.gallery-card__meta {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.75rem;
+  left: 0.85rem;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 560;
+  opacity: 0;
+  transform: translateY(0.45rem);
+  transition:
+    opacity 240ms ease,
+    transform 240ms ease;
+}
+
+.gallery-card__expand {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  background: rgba(12, 12, 11, 0.2);
+  backdrop-filter: blur(5px);
+}
+
+.gallery-card__expand svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.gallery-card__button:hover .gallery-card__scrim,
+.gallery-card__button:hover .gallery-card__meta,
+.gallery-card__button:focus-visible .gallery-card__scrim,
+.gallery-card__button:focus-visible .gallery-card__meta {
+  opacity: 1;
+}
+
+.gallery-card__button:hover .gallery-card__meta,
+.gallery-card__button:focus-visible .gallery-card__meta {
+  transform: translateY(0);
+}
+
+.gallery-card__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.55rem;
+  color: var(--wedding-muted-strong);
+  font-size: 0.72rem;
+}
+
+.gallery-card__fallback svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.gallery-skeleton {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  border-radius: 0.95rem;
+}
+
+.gallery-state {
+  display: grid;
+  max-width: 530px;
+  min-height: 45vh;
+  place-content: center;
+  justify-items: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.gallery-state__icon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  border: 1px solid var(--wedding-line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.48);
+  color: #95704d;
+}
+
+.gallery-state__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.gallery-state h2 {
+  margin: 1.2rem 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.gallery-state p {
+  max-width: 420px;
+  margin: 0.8rem 0 0;
+  color: var(--wedding-muted);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.gallery-state button,
+.gallery-pagination > button {
+  min-height: 2.8rem;
+  margin-top: 1.4rem;
+  border: 1px solid var(--wedding-green);
+  border-radius: 999px;
+  padding: 0 1.2rem;
+  background: var(--wedding-green);
+  color: #fffaf2;
+  font-size: 0.76rem;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.gallery-state button:focus-visible,
+.gallery-pagination > button:focus-visible {
+  outline: 3px solid var(--wedding-brass);
+  outline-offset: 3px;
+}
+
+.gallery-pagination {
+  display: grid;
+  min-height: 7.5rem;
+  place-items: center;
+  padding-top: 2.5rem;
+}
+
+.gallery-pagination__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--wedding-muted-strong);
+  font-size: 0.76rem;
+}
+
+.gallery-pagination__loading svg {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 850ms linear infinite;
+}
+
+.gallery-pagination__error {
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
+  color: var(--wedding-muted-strong);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.gallery-pagination__error button {
+  min-height: 2.65rem;
+  border: 1px solid var(--wedding-green);
+  border-radius: 999px;
+  padding: 0 1.15rem;
+  background: var(--wedding-green);
+  color: #fffaf2;
+  font-size: 0.74rem;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.gallery-pagination__error button:focus-visible {
+  outline: 3px solid var(--wedding-brass);
+  outline-offset: 3px;
+}
+
+.gallery-finale {
+  display: flex;
+  width: min(100%, 560px);
+  align-items: center;
+  gap: 1rem;
+  color: var(--wedding-muted-strong);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.78rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.gallery-finale span {
+  height: 1px;
+  flex: 1;
+  background: var(--wedding-line);
+}
+
+.gallery-footer {
+  display: grid;
+  justify-items: center;
+  border-top: 1px solid var(--wedding-line);
+  padding: 4.5rem 1.5rem;
+  background: #efe8de;
+  text-align: center;
+}
+
+.gallery-monogram {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.2rem;
+  letter-spacing: -0.02em;
+}
+
+.gallery-monogram span {
+  color: #9d7651;
+  font-size: 0.72em;
+  font-style: italic;
+}
+
+.gallery-footer > p {
+  margin: 0.8rem 0 1.4rem;
+  color: #655e56;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.gallery-footer > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--wedding-muted-strong);
+  font-size: 0.64rem;
+  font-weight: 620;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gallery-footer > div:last-child svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+.gallery-to-top {
+  position: fixed;
+  right: 1.2rem;
+  bottom: 1.2rem;
+  z-index: 20;
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  background: rgba(52, 67, 58, 0.92);
+  box-shadow: 0 9px 28px rgba(31, 38, 34, 0.2);
+  color: white;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  animation: gallery-card-arrive 240ms ease both;
+}
+
+.gallery-to-top svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.gallery-route-loader {
+  display: flex;
+  min-height: 100svh;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  background: var(--wedding-paper);
+  color: var(--wedding-muted);
+  font-size: 0.82rem;
+}
+
+.gallery-route-loader svg {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 850ms linear infinite;
+}
+
+/* Lightbox */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 0.9rem;
+  color: white;
+  isolation: isolate;
+  animation: lightbox-arrive 220ms ease both;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.lightbox.is-closing {
+  animation: lightbox-leave 180ms ease both;
+}
+
+.lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 0;
+  background: rgba(10, 10, 9, 0.95);
+  cursor: zoom-out;
+  backdrop-filter: blur(18px);
+}
+
+.lightbox__topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 3.2rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.2rem;
+}
+
+.lightbox__count {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.lightbox__icon-button,
+.lightbox__nav {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.lightbox__icon-button {
+  width: 2.85rem;
+  height: 2.85rem;
+}
+
+.lightbox__icon-button:hover,
+.lightbox__nav:hover:not(:disabled) {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.lightbox__icon-button:focus-visible,
+.lightbox__nav:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
+
+.lightbox__icon-button svg,
+.lightbox__nav svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.lightbox__stage {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  padding: 0.5rem 4.5rem;
+  user-select: none;
+}
+
+.lightbox__image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: calc(100svh - 9.5rem);
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(0.985);
+  filter: drop-shadow(0 22px 55px rgba(0, 0, 0, 0.42));
+  transition:
+    opacity 220ms ease,
+    transform 350ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+.lightbox__image.is-loaded {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.lightbox__loader {
+  position: absolute;
+  display: grid;
+  place-items: center;
+}
+
+.lightbox__loader span {
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.lightbox__error {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.lightbox__error svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 3rem;
+  height: 3rem;
+  transform: translateY(-50%);
+}
+
+.lightbox__nav:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.05);
+}
+
+.lightbox__nav:disabled {
+  opacity: 0.18;
+  cursor: default;
+}
+
+.lightbox__nav--previous {
+  left: 1.3rem;
+}
+
+.lightbox__nav--next {
+  right: 1.3rem;
+}
+
+.lightbox__caption {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 3.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.76rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.lightbox__caption svg {
+  width: 0.86rem;
+  height: 0.86rem;
+}
+
+@media (min-width: 700px) {
+  .gallery-skeleton-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1050px) {
+  .gallery-skeleton-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .access-page {
+    overflow: auto;
+  }
+
+  .access-page__wash {
+    background:
+      linear-gradient(
+        0deg,
+        rgba(20, 27, 23, 0.89) 0%,
+        rgba(27, 29, 25, 0.58) 68%,
+        rgba(20, 23, 21, 0.46) 100%
+      ),
+      linear-gradient(90deg, rgba(21, 28, 24, 0.4), transparent);
+  }
+
+  .access-shell {
+    grid-template-columns: 1fr;
+    gap: 2.4rem;
+    width: min(580px, calc(100% - 2rem));
+    margin: 3rem auto 5.5rem;
+  }
+
+  .access-story {
+    text-align: center;
+  }
+
+  .access-story h1 {
+    font-size: clamp(3.15rem, 13vw, 5rem);
+  }
+
+  .access-intro {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .access-monogram {
+    justify-content: center;
+  }
+
+  .access-eyebrow {
+    margin-top: 1.8rem;
+  }
+
+  .access-date {
+    right: 0;
+    left: 0;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .gallery-header {
+    height: 4.25rem;
+  }
+
+  .gallery-header__inner,
+  .gallery-toolbar__inner,
+  .gallery-content {
+    width: calc(100% - 1.25rem);
+  }
+
+  .gallery-header__inner {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.75rem;
+  }
+
+  .gallery-brand {
+    gap: 0.25rem;
+    font-size: 0.76rem;
+  }
+
+  .gallery-brand i {
+    width: 0.65rem;
+  }
+
+  .gallery-header__title {
+    text-align: left;
+  }
+
+  .gallery-header__title p {
+    display: none;
+  }
+
+  .gallery-header__title h1 {
+    margin: 0;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+  }
+
+  .gallery-logout {
+    width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .gallery-logout span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .gallery-hero {
+    width: calc(100% - 1.75rem);
+    padding: 4.6rem 0 4rem;
+  }
+
+  .gallery-hero h2 {
+    font-size: clamp(3rem, 15vw, 4.8rem);
+  }
+
+  .gallery-hero > p:last-child {
+    max-width: 360px;
+    font-size: 0.85rem;
+  }
+
+  .gallery-toolbar {
+    top: 4.25rem;
+  }
+
+  .gallery-toolbar__inner {
+    min-height: 3.75rem;
+  }
+
+  .gallery-count span {
+    max-width: 7.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gallery-sort {
+    min-width: 10.8rem;
+    height: 2.75rem;
+  }
+
+  .gallery-content {
+    padding-top: 0.65rem;
+  }
+
+  .gallery-card__button,
+  .gallery-card__media,
+  .gallery-skeleton {
+    border-radius: 0.65rem;
+  }
+
+  .gallery-card__scrim,
+  .gallery-card__meta {
+    opacity: 1;
+  }
+
+  .gallery-card__meta {
+    right: 0.55rem;
+    bottom: 0.5rem;
+    left: 0.55rem;
+    transform: none;
+    font-size: 0.58rem;
+  }
+
+  .gallery-card__expand {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .gallery-card__expand svg {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+
+  .gallery-pagination {
+    min-height: 6.5rem;
+    padding-top: 1.5rem;
+  }
+
+  .gallery-finale {
+    gap: 0.65rem;
+    font-size: 0.7rem;
+  }
+
+  .lightbox {
+    padding: max(0.55rem, env(safe-area-inset-top)) 0.55rem
+      max(0.55rem, env(safe-area-inset-bottom));
+  }
+
+  .lightbox__stage {
+    padding: 0.5rem 0;
+  }
+
+  .lightbox__image {
+    max-height: calc(100svh - 9rem);
+  }
+
+  .lightbox__nav {
+    top: auto;
+    bottom: max(0.85rem, env(safe-area-inset-bottom));
+    width: 2.8rem;
+    height: 2.8rem;
+    transform: none;
+  }
+
+  .lightbox__nav:hover:not(:disabled) {
+    transform: scale(1.05);
+  }
+
+  .lightbox__nav--previous {
+    left: 0.65rem;
+  }
+
+  .lightbox__nav--next {
+    right: 0.65rem;
+  }
+
+  .lightbox__caption {
+    max-width: calc(100% - 7rem);
+    margin: 0 auto;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .access-shell {
+    width: calc(100% - 1.15rem);
+    margin-top: 2rem;
+  }
+
+  .access-story h1 {
+    font-size: 2.85rem;
+  }
+
+  .access-intro {
+    font-size: 0.88rem;
+  }
+
+  .access-card {
+    padding: 1.45rem;
+    border-radius: 1.2rem;
+  }
+
+  .access-card h2 {
+    font-size: 2rem;
+  }
+
+  .gallery-count svg {
+    display: none;
+  }
+
+  .gallery-sort {
+    min-width: 10.25rem;
+  }
+}
+
+@media (hover: none) {
+  .gallery-card__scrim,
+  .gallery-card__meta {
+    opacity: 1;
+  }
+
+  .gallery-card__meta {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes access-copy-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes access-card-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gallery-card-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lightbox-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lightbox-leave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position:
+      -220% 0,
+      0 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

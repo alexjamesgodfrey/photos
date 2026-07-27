@@ -1,427 +1,705 @@
-"use client"
-
-import { PhotoCard } from "@/components/PhotoCard"
-import { Button } from "@/components/ui/button"
+import { type GalleryPhoto, PhotoCard } from "@/components/PhotoCard";
+import { PhotoLightbox } from "@/components/PhotoLightbox";
+import { listGalleryPhotos } from "@/lib/gallery-db";
+import { hasGallerySession } from "@/lib/gallery-session";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { useSupabase } from "@/lib/hooks/useSupabase"
-import { weddingUniqueDisplayNames } from "@/lib/supabase/rpc/weddingUniqueDisplayNames"
-import { WeddingUploads } from "@/types/supabaseAlias"
-import { RealtimePostgresInsertPayload } from "@supabase/supabase-js"
-import clsx from "clsx"
-import {
-  Cake,
-  Camera,
-  CatIcon as FelineIcon,
-  Filter,
-  Heart,
-  Upload,
-  User as UserIcon,
-  Users,
-} from "lucide-react"
-import { Geist, Geist_Mono } from "next/font/google"
-import Head from "next/head"
-import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useRef, useState } from "react"
-import useSWRInfinite from "swr/infinite"
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Images,
+  LoaderCircle,
+  LockKeyhole,
+  LogOut,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
+import type { GetServerSideProps } from "next";
+import { Geist } from "next/font/google";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type Photo, RowsPhotoAlbum } from "react-photo-album";
+import useSWRInfinite from "swr/infinite";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-})
+const geist = Geist({ subsets: ["latin"] });
+const PAGE_SIZE = 48;
+const MEDIA_REFRESH_LEAD_MS = 60_000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
-const PAGE_SIZE = 12
+type SortOrder = "album" | "newest" | "oldest";
 
-const categories = [
-  { value: "all", label: "All Photos", icon: Camera },
-  { value: "professional", label: "Professional", icon: Camera },
-  { value: "ceremony", label: "Ceremony", icon: Heart },
-  { value: "reception", label: "Reception", icon: Cake },
-  { value: "candid", label: "Candid", icon: Users },
-] as const
-
-type CategoryVal = (typeof categories)[number]["value"]
-
-interface Photo {
-  id: string
-  src: string // thumb
-  fullSrc: string // original
-  uploader: string
-  category: CategoryVal
-  timestamp: string
-  filePath: string
+interface PhotosPage {
+  photos: GalleryPhoto[];
+  nextCursor: string | null;
+  total: number;
+  mediaExpiresAt: number;
 }
 
-export default function GalleryPage() {
-  const { supabase } = useSupabase()
-  const router = useRouter()
+interface GalleryPageProps {
+  initialPage: PhotosPage | null;
+}
 
-  const [userName, setUserName] = useState("")
-  const [selectedCat, setSelectedCat] = useState<CategoryVal>("all")
-  const [selectedUploader, setSelectedUploader] = useState<string>("all")
-  const [photosCount, setPhotosCount] = useState(0)
-  const [uploaders, setUploaders] = useState<string[]>([])
-  const [loadingUploaders, setLoadingUploaders] = useState(false)
+interface AlbumLayoutPhoto extends Photo {
+  galleryPhoto: GalleryPhoto;
+  globalIndex: number;
+}
 
-  /* ---------- 1.  Auth guard & user name ---------- */
-  useEffect(() => {
-    const name = localStorage.getItem("userName")
-    if (!name) {
-      router.push("/")
-      return
-    }
-    setUserName(name)
-  }, [router])
+export const getServerSideProps: GetServerSideProps<GalleryPageProps> = async ({
+  req,
+  res,
+}) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
 
-  /* ---------- 2.  Fetch unique display names ---------- */
-  useEffect(() => {
-    let active = true
-    setLoadingUploaders(true)
-    weddingUniqueDisplayNames(supabase)
-      .then((names) => {
-        if (!active) return
-        setUploaders(names)
-      })
-      .finally(() => active && setLoadingUploaders(false))
-    return () => {
-      active = false
-    }
-  }, [supabase])
-
-  /* ---------- 3.  Count matching photos (category + uploader) ---------- */
-  useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      // If you implemented the enhanced RPC use that here; otherwise head count:
-      let query = supabase
-        .from("wedding_uploads")
-        .select("*", { count: "exact", head: true })
-
-      if (selectedCat !== "all") query = query.eq("category", selectedCat)
-      if (selectedUploader !== "all") {
-        query = query.eq("display_name", selectedUploader)
-      }
-
-      const { count, error } = await query
-      if (error) {
-        console.error("Count error", error)
-        return
-      }
-      if (!cancelled) setPhotosCount(count || 0)
-    }
-    run()
-    return () => {
-      cancelled = true
-    }
-  }, [supabase, selectedCat, selectedUploader])
-
-  /* ---------- 4.  SWR infinite (key includes both filters) ---------- */
-  const getKey = (
-    index: number,
-    prev: WeddingUploads[] | null
-  ): { index: number; cat: CategoryVal; uploader: string } | null => {
-    if (prev && !prev.length) return null
-    return { index, cat: selectedCat, uploader: selectedUploader }
-  }
-
-  const fetcher = async (key: {
-    index: number
-    cat: CategoryVal
-    uploader: string
-  }) => {
-    const from = key.index * PAGE_SIZE
-    const to = from + PAGE_SIZE - 1
-
-    let q = supabase
-      .from("wedding_uploads")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(from, to)
-
-    if (key.cat !== "all") q = q.eq("category", key.cat)
-    if (key.uploader !== "all") q = q.eq("display_name", key.uploader)
-
-    const { data, error } = await q
-    if (error) throw error
-    return data as WeddingUploads[]
-  }
-
-  const { data, size, setSize, isValidating, mutate } = useSWRInfinite<
-    WeddingUploads[]
-  >(getKey, fetcher, { revalidateOnFocus: false })
-
-  /* ---------- 5.  Map DB rows to UI objects ---------- */
-  const mapRow = useCallback(
-    (row: WeddingUploads): Photo => {
-      const pub = supabase.storage.from("wedding")
-      const full = pub.getPublicUrl(row.file_path).data.publicUrl
-      const thumb = pub.getPublicUrl(row.file_path, {
-        transform: { width: 384, quality: 70 },
-      }).data.publicUrl
-
+  try {
+    if (!hasGallerySession(req)) {
       return {
-        id: row.id,
-        src: thumb,
-        fullSrc: full,
-        uploader: row.display_name,
-        // @ts-ignore
-        category: row.category,
-        timestamp: row.created_at,
-        filePath: row.file_path,
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
+  } catch {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  try {
+    const initialPage = await listGalleryPhotos({
+      limit: PAGE_SIZE,
+      sort: "album",
+    });
+
+    return {
+      props: {
+        initialPage,
+      },
+    };
+  } catch (error) {
+    console.error("Unable to preload gallery photos", error);
+    return { props: { initialPage: null } };
+  }
+};
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const sortOptions: Array<{
+  value: SortOrder;
+  label: string;
+  icon: typeof Sparkles;
+}> = [
+  { value: "album", label: "Captured order", icon: Sparkles },
+  { value: "newest", label: "Newest first", icon: ArrowDown },
+  { value: "oldest", label: "Oldest first", icon: ArrowUp },
+];
+
+async function fetchPhotos(url: string): Promise<PhotosPage> {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    let message = "The gallery couldn’t be loaded.";
+
+    try {
+      const body = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+      if (body.message || body.error) message = body.message ?? body.error!;
+    } catch {
+      // Preserve the user-facing fallback for empty responses.
+    }
+
+    throw new ApiError(response.status, message);
+  }
+
+  return response.json() as Promise<PhotosPage>;
+}
+
+function SkeletonGallery() {
+  const heights = [
+    1.34, 0.76, 1.18, 1.5, 0.86, 1.26, 0.72, 1.42, 1.05, 1.32, 0.8, 1.2,
+  ];
+
+  return (
+    <div
+      className="gallery-skeleton-grid"
+      aria-label="Loading photographs"
+      aria-busy="true"
+    >
+      {heights.map((ratio, index) => (
+        <div
+          key={index}
+          className="gallery-skeleton"
+          style={{ aspectRatio: `1 / ${ratio}` }}
+          aria-hidden="true"
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function GalleryPage({ initialPage }: GalleryPageProps) {
+  const router = useRouter();
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [sort, setSort] = useState<SortOrder>("album");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showTopButton, setShowTopButton] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const mediaRefreshPromiseRef = useRef<{
+    key: string;
+    promise: Promise<unknown>;
+  } | null>(null);
+  const mediaErrorRefreshKeyRef = useRef<string | null>(null);
+
+  const getKey = (pageIndex: number, previousPage: PhotosPage | null) => {
+    if (previousPage && !previousPage.nextCursor) return null;
+
+    const params = new URLSearchParams({
+      sort,
+      limit: String(PAGE_SIZE),
+    });
+
+    if (pageIndex > 0 && previousPage?.nextCursor) {
+      params.set("cursor", previousPage.nextCursor);
+    }
+
+    return `/api/photos?${params.toString()}`;
+  };
+
+  const { data, error, isValidating, mutate, setSize } = useSWRInfinite<
+    PhotosPage,
+    ApiError
+  >(getKey, fetchPhotos, {
+    fallbackData:
+      sort === "album" && initialPage ? [initialPage] : undefined,
+    revalidateFirstPage: false,
+    revalidateOnMount: !(sort === "album" && initialPage),
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+  });
+
+  const hasLoadedPages = Boolean(data?.length);
+  const earliestMediaExpiry = useMemo(() => {
+    let earliest: number | null = null;
+
+    for (const page of data ?? []) {
+      if (
+        !Number.isSafeInteger(page.mediaExpiresAt) ||
+        page.mediaExpiresAt <= 0
+      ) {
+        continue;
       }
-    },
-    [supabase]
-  )
 
-  const photos: Photo[] = data ? data.flat().map(mapRow) : []
+      earliest =
+        earliest === null
+          ? page.mediaExpiresAt
+          : Math.min(earliest, page.mediaExpiresAt);
+    }
 
-  /* ---------- 6.  Infinite scroll sentinel ---------- */
-  const sentinel = useRef<HTMLDivElement | null>(null)
+    return earliest;
+  }, [data]);
+  const mediaGenerationKey = useMemo(
+    () => (data ?? []).map((page) => page.mediaExpiresAt).join(":"),
+    [data],
+  );
+  const mediaRefreshKey = `${sort}:${mediaGenerationKey}`;
+
+  const revalidateLoadedPages = useCallback((): Promise<unknown> => {
+    if (!hasLoadedPages) return Promise.resolve();
+    if (mediaRefreshPromiseRef.current?.key === mediaRefreshKey) {
+      return mediaRefreshPromiseRef.current.promise;
+    }
+
+    let refreshPromise: Promise<unknown>;
+    // SWR Infinite revalidates every loaded page when its mutator is called
+    // without replacement data.
+    refreshPromise = mutate()
+      .catch(() => undefined)
+      .finally(() => {
+        if (mediaRefreshPromiseRef.current?.promise === refreshPromise) {
+          mediaRefreshPromiseRef.current = null;
+        }
+      });
+    mediaRefreshPromiseRef.current = {
+      key: mediaRefreshKey,
+      promise: refreshPromise,
+    };
+
+    return refreshPromise;
+  }, [hasLoadedPages, mediaRefreshKey, mutate]);
 
   useEffect(() => {
-    const el = sentinel.current
-    if (!el) return
+    if (earliestMediaExpiry === null) return;
 
-    let loading = false
+    let timeoutId: number | undefined;
 
-    const io = new IntersectionObserver(
+    const scheduleRefresh = () => {
+      const refreshAt =
+        earliestMediaExpiry * 1_000 - MEDIA_REFRESH_LEAD_MS;
+      const delay = refreshAt - Date.now();
+
+      if (delay <= 0) {
+        void revalidateLoadedPages();
+        return;
+      }
+
+      timeoutId = window.setTimeout(
+        scheduleRefresh,
+        Math.min(delay, MAX_TIMEOUT_MS),
+      );
+    };
+
+    scheduleRefresh();
+
+    return () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, [earliestMediaExpiry, revalidateLoadedPages]);
+
+  useEffect(() => {
+    if (earliestMediaExpiry === null) return;
+
+    const refreshIfMediaIsNearExpiry = () => {
+      if (document.visibilityState !== "visible") return;
+
+      const expiresIn = earliestMediaExpiry * 1_000 - Date.now();
+      if (expiresIn <= MEDIA_REFRESH_LEAD_MS) {
+        void revalidateLoadedPages();
+      }
+    };
+
+    document.addEventListener(
+      "visibilitychange",
+      refreshIfMediaIsNearExpiry,
+    );
+    window.addEventListener("focus", refreshIfMediaIsNearExpiry);
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        refreshIfMediaIsNearExpiry,
+      );
+      window.removeEventListener("focus", refreshIfMediaIsNearExpiry);
+    };
+  }, [earliestMediaExpiry, revalidateLoadedPages]);
+
+  const refreshAfterMediaError = useCallback(() => {
+    if (
+      !mediaGenerationKey ||
+      mediaErrorRefreshKeyRef.current === mediaRefreshKey
+    ) {
+      return;
+    }
+
+    mediaErrorRefreshKeyRef.current = mediaRefreshKey;
+    void revalidateLoadedPages();
+  }, [mediaGenerationKey, mediaRefreshKey, revalidateLoadedPages]);
+
+  const layoutPages = useMemo(() => {
+    const seen = new Set<string>();
+    let globalIndex = 0;
+
+    return (data ?? []).map((page) => ({
+      photos: page.photos.flatMap<AlbumLayoutPhoto>((photo) => {
+        if (seen.has(photo.id)) return [];
+        seen.add(photo.id);
+        const index = globalIndex;
+        globalIndex += 1;
+
+        return [
+          {
+            src: photo.thumbUrl,
+            width: photo.width > 0 ? photo.width : 4,
+            height: photo.height > 0 ? photo.height : 5,
+            key: photo.id,
+            alt: "",
+            galleryPhoto: photo,
+            globalIndex: index,
+          },
+        ];
+      }),
+    }));
+  }, [data]);
+
+  const photos = useMemo(
+    () =>
+      layoutPages.flatMap((page) =>
+        page.photos.map((photo) => photo.galleryPhoto),
+      ),
+    [layoutPages],
+  );
+
+  const lastPage = data?.[data.length - 1];
+  const total = data?.[0]?.total;
+  const hasMore = Boolean(lastPage?.nextCursor);
+  const initialLoading = !data && !error;
+  const initialError = !data && error;
+  const loadingMore = Boolean(data?.length && isValidating);
+
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) {
+      void router.replace("/");
+    }
+  }, [error, router]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || error) return;
+
+    const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0]
-        if (entry.isIntersecting && !loading) {
-          loading = true
-          setSize((s) => s + 1)
-          queueMicrotask(() => {
-            loading = false
-          })
+        if (entries[0]?.isIntersecting && !isValidating) {
+          void setSize((size) => size + 1);
         }
       },
-      {
-        root: null,
-        rootMargin: "200px 0px 200px 0px",
-        threshold: 0,
-      }
-    )
+      { rootMargin: "800px 0px", threshold: 0 },
+    );
 
-    io.observe(el)
-    return () => io.disconnect()
-  }, [setSize, selectedCat, selectedUploader, photos.length])
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [error, hasMore, isValidating, setSize]);
 
-  /* ---------- 7.  Realtime new-photo subscription (respect filters) ---------- */
   useEffect(() => {
-    const channel = supabase
-      .channel("rt-uploads")
-      .on<WeddingUploads>(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "wedding_uploads" },
-        (payload: RealtimePostgresInsertPayload<WeddingUploads>) => {
-          const newRow = payload.new
-          // Filter gating:
-          if (
-            (selectedCat !== "all" && newRow.category !== selectedCat) ||
-            (selectedUploader !== "all" &&
-              newRow.display_name !== selectedUploader)
-          ) {
-            return
-          }
+    const onScroll = () => setShowTopButton(window.scrollY > 900);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-          mutate<WeddingUploads[][]>((pages) => {
-            if (!pages) return [[newRow]]
-            return [[newRow, ...pages[0]], ...pages.slice(1)]
-          }, false)
-          // Increment count locally (optimistic)
-          setPhotosCount((c) => c + 1)
-        }
-      )
-      .subscribe()
+  useEffect(() => {
+    if (!selectedId || !hasMore || isValidating) return;
 
-    return () => {
-      supabase.removeChannel(channel)
+    const selectedIndex = photos.findIndex((photo) => photo.id === selectedId);
+    if (selectedIndex >= photos.length - 3) {
+      void setSize((size) => size + 1);
     }
-  }, [mutate, supabase, selectedCat, selectedUploader])
+  }, [hasMore, isValidating, photos, selectedId, setSize]);
 
-  /* ---------- 8.  Helpers ---------- */
-  const CatIcon = (cat: CategoryVal) =>
-    categories.find((c) => c.value === cat)?.icon ?? Camera
+  const changeSort = (nextSort: SortOrder) => {
+    if (nextSort === sort) return;
 
-  // Reset pagination when filter changes (SWR key ensures cache separation, but we cap size)
-  useEffect(() => {
-    setSize(1)
-  }, [selectedCat, selectedUploader, setSize])
+    const update = () => {
+      setSelectedId(null);
+      void setSize(1);
+      setSort(nextSort);
+    };
 
-  if (!userName) return null
+    const viewTransitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => void;
+    };
+
+    if (
+      viewTransitionDocument.startViewTransition &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      viewTransitionDocument.startViewTransition(update);
+    } else {
+      update();
+    }
+  };
+
+  const logout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } finally {
+      await router.replace("/");
+      setLoggingOut(false);
+    }
+  };
+
+  if (error instanceof ApiError && error.status === 401) {
+    return (
+      <main className={`gallery-route-loader ${geist.className}`}>
+        <LoaderCircle aria-hidden="true" />
+        <span>Returning to the private entrance…</span>
+      </main>
+    );
+  }
+
+  const SelectedSortIcon =
+    sortOptions.find((option) => option.value === sort)?.icon ?? Sparkles;
 
   return (
     <>
       <Head>
-        <title>Wedding Gallery - Alex & Sierra's Wedding</title>
+        <title>The Gallery — Alex &amp; Sierra</title>
         <meta
           name="description"
-          content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
+          content="A private collection of Alex and Sierra’s wedding photographs."
         />
-        <meta name="robots" content="noindex, nofollow" />
-        <meta
-          property="og:title"
-          content="Wedding Gallery - Alex & Sierra's Wedding"
-        />
-        <meta
-          property="og:description"
-          content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
-        />
-        <meta property="og:image" content="/cover-photo.png" />
-        <meta
-          name="twitter:title"
-          content="Wedding Gallery - Alex & Sierra's Wedding"
-        />
-        <meta
-          name="twitter:description"
-          content="Browse and view all the special moments from Alex & Sierra's wedding celebration."
-        />
-        <meta name="twitter:image" content="/cover-photo.png" />
+        <meta name="robots" content="noindex, nofollow, noarchive" />
       </Head>
 
-      <div
-        className={`min-h-screen bg-gray-50 ${geistSans.className} ${geistMono.className}`}
-      >
-        {/* ── Header ─────────────────────── */}
-        <div className="bg-white shadow-sm sticky top-0 z-10">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => console.log("hi")}
-                className="p-2"
-              >
-                <FelineIcon className="h-5 w-5 text-black" />
-              </Button>
+      <main className={`gallery-page ${geist.className}`}>
+        <a className="skip-link" href="#photographs">
+          Skip to photographs
+        </a>
 
-              <h1 className="font-serif text-lg font-semibold text-gray-800">
-                Wedding Gallery
-              </h1>
+        <header className="gallery-header">
+          <div className="gallery-header__inner">
+            <a
+              className="gallery-brand"
+              href="#gallery-top"
+              aria-label="Gallery home"
+            >
+              <span>A</span>
+              <i aria-hidden="true" />
+              <span>S</span>
+            </a>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/upload")}
-                className="p-2"
-              >
-                <Upload className="h-5 w-5 text-black" />
-              </Button>
+            <div className="gallery-header__title">
+              <p>Alex &amp; Sierra</p>
+              <h1>Wedding photographs</h1>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Category Filter */}
-              <div className="flex items-center gap-2 flex-1">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <Select
-                  value={selectedCat}
-                  onValueChange={(v) => setSelectedCat(v as CategoryVal)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        <div className="flex items-center gap-2">
-                          <c.icon className="h-4 w-4" /> {c.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Uploader Filter */}
-              <div className="flex items-center gap-2 flex-1">
-                <UserIcon className="h-4 w-4 text-gray-500" />
-                <Select
-                  value={selectedUploader}
-                  onValueChange={(v) => setSelectedUploader(v)}
-                  disabled={loadingUploaders}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Uploader" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      <div className="flex items-center gap-2">
-                        <UserIcon className="h-4 w-4" /> All Uploaders
-                      </div>
-                    </SelectItem>
-                    {uploaders.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Welcome / Count ─────────────────────── */}
-        <div className="px-4 py-4 bg-rose-50 border-b">
-          <p className="text-center text-gray-700">
-            Welcome,&nbsp;
-            <span className="font-semibold text-rose-700">{userName}</span>!
-            <br />
-            <span className="text-sm text-gray-600">
-              {photosCount} {selectedCat !== "all" ? `${selectedCat} ` : ""}
-              photo{photosCount === 1 ? "" : "s"}
-              {selectedUploader !== "all" && (
-                <>
-                  {" "}
-                  by <span className="font-medium">{selectedUploader}</span>
-                </>
-              )}
-            </span>
-          </p>
-        </div>
-
-        {/* ── Grid ────────────────────────── */}
-        <div className="p-4">
-          {photos.length === 0 && !isValidating ? (
-            <p className="text-center text-gray-500 pt-10">No photos yet</p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {photos.map((ph) => (
-                <PhotoCard
-                  key={ph.id}
-                  photo={ph}
-                  isOwner={ph.uploader === userName}
-                  onUpdated={() => mutate()}
-                  onDeleted={() => {
-                    mutate()
-                    setPhotosCount((c) => Math.max(0, c - 1))
-                  }}
+            <button
+              type="button"
+              className="gallery-logout"
+              onClick={logout}
+              disabled={loggingOut}
+            >
+              {loggingOut ? (
+                <LoaderCircle
+                  className="gallery-logout__loader"
+                  aria-hidden="true"
                 />
-              ))}
-            </div>
-          )}
+              ) : (
+                <LogOut aria-hidden="true" />
+              )}
+              <span>Lock gallery</span>
+            </button>
+          </div>
+        </header>
 
-          {/* Sentinel */}
-          <div
-            ref={sentinel}
-            className={clsx("h-10", isValidating && "animate-pulse")}
-          />
-        </div>
-
-        {/* ── Floating Upload Button ──────── */}
-        <Button
-          onClick={() => router.push("/upload")}
-          className="bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-lg fixed bottom-6 right-6 h-16 w-16"
+        <section
+          id="gallery-top"
+          className="gallery-hero"
+          aria-labelledby="gallery-heading"
         >
-          <Upload className="h-12 w-12 text-white" />
-        </Button>
-      </div>
+          <p className="gallery-hero__eyebrow">
+            <Sparkles aria-hidden="true" />
+            The complete collection
+          </p>
+          <h2 id="gallery-heading">
+            Every glance,
+            <br />
+            every happy tear.
+          </h2>
+          <p>
+            Take your time. Tap any photograph to see it in full, then use the
+            arrows or swipe to move through the day.
+          </p>
+        </section>
+
+        <section className="gallery-toolbar" aria-label="Gallery controls">
+          <div className="gallery-toolbar__inner">
+            <div className="gallery-count" aria-live="polite">
+              <Images aria-hidden="true" />
+              <span>
+                {initialLoading
+                  ? "Gathering photographs"
+                  : typeof total === "number" && total > photos.length
+                    ? `${photos.length} of ${total} loaded`
+                    : `${photos.length} photograph${photos.length === 1 ? "" : "s"}`}
+              </span>
+            </div>
+
+            <label className="gallery-sort">
+              <span className="sr-only">Sort photographs</span>
+              <SelectedSortIcon aria-hidden="true" />
+              <select
+                value={sort}
+                onChange={(event) =>
+                  changeSort(event.target.value as SortOrder)
+                }
+                aria-label="Sort photographs"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="gallery-sort__chevron"
+                aria-hidden="true"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section
+          id="photographs"
+          className="gallery-content"
+          aria-busy={initialLoading || loadingMore}
+        >
+          {initialLoading ? (
+            <SkeletonGallery />
+          ) : initialError ? (
+            <div className="gallery-state">
+              <div className="gallery-state__icon">
+                <RefreshCw aria-hidden="true" />
+              </div>
+              <h2>The photographs are taking a moment.</h2>
+              <p>
+                {initialError.message ||
+                  "Please check your connection and try once more."}
+              </p>
+              <button type="button" onClick={() => void mutate()}>
+                Try again
+              </button>
+            </div>
+          ) : photos.length === 0 ? (
+            <div className="gallery-state">
+              <div className="gallery-state__icon">
+                <Images aria-hidden="true" />
+              </div>
+              <h2>The gallery is almost ready.</h2>
+              <p>
+                Photographs will appear here as soon as the collection is
+                published.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="gallery-albums">
+                {layoutPages.map((page, pageIndex) => (
+                  <RowsPhotoAlbum<AlbumLayoutPhoto>
+                    key={`${sort}-${pageIndex}-${page.photos[0]?.key ?? "empty"}`}
+                    photos={page.photos}
+                    defaultContainerWidth={1280}
+                    breakpoints={[360, 600, 900, 1280, 1640]}
+                    spacing={(containerWidth) =>
+                      containerWidth < 600 ? 8 : 12
+                    }
+                    targetRowHeight={(containerWidth) =>
+                      containerWidth < 600
+                        ? 220
+                        : containerWidth < 1200
+                          ? 275
+                          : 315
+                    }
+                    rowConstraints={{ singleRowMaxHeight: 340 }}
+                    componentsProps={{
+                      container: { className: "gallery-album-page" },
+                    }}
+                    render={{
+                      photo: (_, { photo, width, height }) => (
+                        <PhotoCard
+                          key={photo.key ?? photo.galleryPhoto.id}
+                          photo={photo.galleryPhoto}
+                          index={photo.globalIndex}
+                          total={total}
+                          style={{ width, height }}
+                          onOpen={(selected) => setSelectedId(selected.id)}
+                          onMediaError={refreshAfterMediaError}
+                        />
+                      ),
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div ref={sentinelRef} className="gallery-pagination">
+                {error ? (
+                  <div className="gallery-pagination__error" role="status">
+                    <span>
+                      The next photographs couldn&apos;t be loaded. Everything
+                      already here is still available.
+                    </span>
+                    <button type="button" onClick={() => void mutate()}>
+                      Try again
+                    </button>
+                  </div>
+                ) : loadingMore ? (
+                  <div
+                    className="gallery-pagination__loading"
+                    aria-live="polite"
+                  >
+                    <LoaderCircle aria-hidden="true" />
+                    <span>Loading more memories…</span>
+                  </div>
+                ) : hasMore ? (
+                  <button
+                    type="button"
+                    onClick={() => void setSize((size) => size + 1)}
+                  >
+                    Load more photographs
+                  </button>
+                ) : (
+                  <div className="gallery-finale">
+                    <span aria-hidden="true" />
+                    <p>You&apos;ve reached the end of a beautiful day.</p>
+                    <span aria-hidden="true" />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        <footer className="gallery-footer">
+          <div className="gallery-monogram" aria-hidden="true">
+            A <span>&amp;</span> S
+          </div>
+          <p>Thank you for celebrating with us.</p>
+          <div>
+            <LockKeyhole aria-hidden="true" />
+            Private gallery
+          </div>
+        </footer>
+
+        {showTopButton && (
+          <button
+            type="button"
+            className="gallery-to-top"
+            onClick={() =>
+              window.scrollTo({
+                top: 0,
+                behavior: window.matchMedia(
+                  "(prefers-reduced-motion: reduce)",
+                ).matches
+                  ? "auto"
+                  : "smooth",
+              })
+            }
+            aria-label="Back to top"
+          >
+            <ArrowUp aria-hidden="true" />
+          </button>
+        )}
+
+        {selectedId && (
+          <PhotoLightbox
+            photos={photos}
+            selectedId={selectedId}
+            total={total}
+            onSelect={setSelectedId}
+            onClose={() => setSelectedId(null)}
+            onMediaError={refreshAfterMediaError}
+          />
+        )}
+      </main>
     </>
-  )
+  );
 }

@@ -1,279 +1,215 @@
-import NameCombobox from "@/components/NameCombobox"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useSupabase } from "@/lib/hooks/useSupabase"
-import { useUser } from "@/lib/hooks/useUser"
-import { Camera, Loader2 } from "lucide-react" // ⬅️ spinner
-import { Geist, Geist_Mono } from "next/font/google"
-import Head from "next/head"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { hasGallerySession } from "@/lib/gallery-session";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+} from "lucide-react";
+import type { GetServerSideProps } from "next";
+import { Geist } from "next/font/google";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import { FormEvent, useState } from "react";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-})
+const geist = Geist({ subsets: ["latin"] });
 
-const allNames = [
-  "@rebeccaoharaphotography",
-  "Doris Godfrey",
-  "Alex Godfrey",
-  "Emma McCarthy",
-  "Scott DeSimone",
-  "Amanda Graham",
-  "Henry Malarkey 4",
-  "Matthew DeSimone",
-  "Laurel Fulton",
-  "Anne Turberg",
-  "Michael Putney",
-  "Taylor DeSimone",
-  "Deb Litman",
-  "Stephen Schott",
-  "Tye Flurie",
-  "Kate Sommer",
-  "Charles Mitz",
-  "Jake DeSimone",
-  "Charlie Malarkey ",
-  "Uma Vejendla",
-  "Zane Neelin",
-  "Lisa Campbell ",
-  "Keli Hinnant",
-  "Mohamed Hussien",
-  "Harvey Bell",
-  "Joan Behm",
-  "Logan Studley",
-  "Victoria Crawford",
-  "Susan Janeczek",
-  "Susan Bennett",
-  "Stacie Klossner",
-  "Joseph Hernandez",
-  "Michelle Carlson ",
-  "Brenda Malarkey",
-  "Sara Godfrey",
-  "Gretchen VanOrden",
-  "Kimberly Harrington",
-  "Vincent kinduelo",
-  "Graham Carson",
-  "Jasmine Apicella",
-  "Jerome Morris",
-  "Jennifer Baker",
-  "Tim Apicella",
-  "Andrea Jackson",
-  "Lukas Seklir",
-  "Mauricio Fuhrman",
-  "Moe Zaib",
-  "Sahib Manjal",
-  "Nathan Vogt",
-  "Jariful Chowdhury",
-  "Liz Godfrey",
-  "Keli Curran",
-  "Chris Apicella",
-  "Reese Goldberg",
-  "Peter Apicella",
-  "Ms. Bobbie Gluck",
-  "Ignazio Perez Romero",
-  "Grant Rinehimer",
-  "Isabella Cagno",
-  "Cindy Schoberg",
-  "Eric Anderson ",
-  "Quinn Elliott",
-  "Evie Linantud ",
-  "Frank Malarkey",
-  "Rick Walczak",
-  "Kerry Sweatman",
-  "Juan Carlos Caballero-Pérez ",
-  "Paul Smitelli",
-  "Sarah Harrington",
-  "Angeles Cruz",
-  "Vincent kinduelo ",
-  "Xander Apicella",
-  "Max T Gluck",
-  "Charlize Trostinsky",
-  "Michael (Poppy) Apicella",
-  "Katie Apicella",
-  "Carla Akl",
-  "Tommy Sauer",
-  "Julio Leanez",
-  "Maya Sapozhnikov",
-  "Camilo Ortiz",
-  "Kyle Chen",
-  "Connor Hanson",
-  "John Kowalczyk",
-  "Mouad Damir",
-  "Dylan Beegal",
-  "Steven Godfrey",
-  "Sierra Apicella",
-  "Tina DeSimone",
-  "David Graham",
-  "Kimberly Malarkey",
-  "Kevin Giunta",
-  "Steve Turberg",
-  "Melissa",
-  "Anna",
-  "Joseph DeFelice ",
-  "Allen Litman",
-  "Julia Schott",
-  "Heather Flurie",
-  "Kevin Jones",
-  "Kathie Malarkey",
-  "Mahesh",
-  "Kayla",
-  "Riana Villacampa",
-  "Don Behm",
-  "Oliver Crawford ",
-  "Mark Janeczek",
-  "Wally Saucke",
-  "Roger Klossner",
-  "Gabriella Canale",
-  "Nat Carlson",
-  "Grandpa Henry Malarkey",
-  "Ken Yonda",
-  "Jim DeMarco",
-  "Emma Brady",
-  "Erik Baker",
-  "Marta Apicella",
-  "Edwsrds Stacy Jackson ",
-  "Martin Janzen",
-  "Ivan Kwong",
-  "Veronica Jurrius",
-  "Tasluba Bushra",
-  "Alan Godfrey",
-  "Krissy Reiss",
-  "Max Gluck",
-  "Natalia Pope",
-  "Martin Salantay",
-  "Lando Norris",
-  "Marygrace Anderson",
-  "Kamal Patel",
-  "Eli Littlefield ",
-  "Lisa (Frank Malarkey's Date)",
-  "Kathy Petroff",
-  "Kevin Sweatman",
-  "Nicolette Morell",
-  "Peter J Gluck",
-  "Noah Martinez",
-  "Michael Akl",
-  "Mitchell Burrall",
-  "Emma Conklin",
-  "Henry Malarkey 5",
-  "Nithin Vejendla",
-  "Brendan Klossner",
-  "Brandon VanOrden",
-  "TBD Gluck ( or plus one)",
-  "Ryan Malarkey ",
-  "Ajay Vejendla",
-  "Christin Napierkowski",
-]
-
-export default function HomePage() {
-  const { user, refetchUser } = useUser()
-  const { supabase } = useSupabase()
-  const router = useRouter()
-
-  const [name, setName] = useState("")
-  const [loading, setLoading] = useState(false) // ⬅️ NEW
-
-  /* ---------- sign-in ---------- */
-  const handleContinue = async () => {
-    const finalName = name.trim()
-    if (!finalName) return
-    localStorage.setItem("userName", finalName)
-
-    setLoading(true) // ⬅️ start spinner
-    const { data, error } = await supabase.auth.signInAnonymously()
-    setLoading(false) // ⬅️ stop spinner
-
-    if (error) console.error(error)
-    if (data.user) {
-      await refetchUser()
-      router.push("/gallery")
+export const getServerSideProps: GetServerSideProps = async ({ req }) => {
+  try {
+    if (hasGallerySession(req)) {
+      return {
+        redirect: {
+          destination: "/gallery",
+          permanent: false,
+        },
+      };
     }
+  } catch {
+    // If the server is not configured yet, render the entrance so its form
+    // can provide the API's friendly configuration error.
   }
 
-  useEffect(() => {
-    if (user) router.push("/gallery")
-  }, [user, router])
+  return { props: {} };
+};
+
+export default function HomePage() {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const accessCode = code.trim();
+    if (!accessCode || loading) return;
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/code", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: accessCode }),
+      });
+
+      if (!response.ok) {
+        let message = "That access code wasn’t recognized. Please try again.";
+
+        try {
+          const body = (await response.json()) as {
+            message?: string;
+            error?: string;
+          };
+          if (body.message || body.error) message = body.message ?? body.error!;
+        } catch {
+          // The friendly fallback above also covers empty error responses.
+        }
+
+        setError(message);
+        return;
+      }
+
+      await router.replace("/gallery");
+    } catch {
+      setError(
+        "We couldn’t reach the gallery. Check your connection and try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
       <Head>
-        <title>Alex & Sierra's Wedding Photos</title>
+        <title>Alex &amp; Sierra — Wedding Photos</title>
         <meta
           name="description"
-          content="Welcome to Alex & Sierra's wedding photo sharing platform. Sign in to view and share our special moments."
+          content="A private collection of memories from Alex and Sierra’s wedding."
         />
-        <meta name="robots" content="index, follow" />
-
-        {/* Page-specific Open Graph */}
-        <meta property="og:title" content="Alex & Sierra's Wedding Photos" />
+        <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta property="og:title" content="Alex & Sierra — Wedding Photos" />
         <meta
           property="og:description"
-          content="Welcome to Alex & Sierra's wedding photo sharing platform. Sign in to view and share our special moments."
+          content="A private collection of memories from Alex and Sierra’s wedding."
         />
-        <meta property="og:image" content="/cover-photo.png" />
-
-        {/* Page-specific Twitter */}
-        <meta name="twitter:title" content="Alex & Sierra's Wedding Photos" />
-        <meta
-          name="twitter:description"
-          content="Welcome to Alex & Sierra's wedding photo sharing platform. Sign in to view and share our special moments."
-        />
-        <meta name="twitter:image" content="/cover-photo.png" />
       </Head>
 
-      <div
-        className={`min-h-screen bg-gradient-to-br from-rose-50 to-pink-50 p-4 flex items-center justify-center ${geistSans.className} ${geistMono.className}`}
-      >
-        <Card className="w-full max-w-md mx-auto shadow-lg">
-          <CardHeader className="text-center pb-2">
-            <div className="flex justify-center mb-4">
-              <div className="bg-rose-100 rounded-full">
-                <Image
-                  src="/portait.png"
-                  alt="Cat"
-                  width={128}
-                  height={128}
-                  className="h-20 w-20 text-rose-600 rounded-full"
-                />
-              </div>
+      <main className={`access-page ${geist.className}`}>
+        <div className="access-page__wash" aria-hidden="true" />
+        <div className="access-page__grain" aria-hidden="true" />
+
+        <section className="access-shell" aria-labelledby="access-title">
+          <div className="access-story">
+            <div className="access-monogram" aria-label="Alex and Sierra">
+              <span>A</span>
+              <i aria-hidden="true" />
+              <span>S</span>
             </div>
-            <CardTitle className="text-2xl font-serif text-gray-800">
-              Alex &amp; Sierra&rsquo;s Wedding
-            </CardTitle>
-            <p className="text-gray-600 mt-2">
-              Share and save our special moments
+
+            <p className="access-eyebrow">Our wedding photographs</p>
+            <h1 id="access-title">
+              A day we&apos;ll
+              <br />
+              remember forever.
+            </h1>
+            <p className="access-intro">
+              Come back to the celebration, the people, and all the little
+              moments in between.
             </p>
-          </CardHeader>
+          </div>
 
-          <CardContent className="space-y-6">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              Your name
-            </label>
-            <NameCombobox
-              name={name}
-              setName={setName}
-              unclaimedNames={allNames}
-              loading={loading}
-              setLoading={setLoading}
-            />
+          <div className="access-card">
+            <div className="access-card__icon" aria-hidden="true">
+              <KeyRound />
+            </div>
+            <p className="access-card__eyebrow">Private collection</p>
+            <h2>Enter the gallery</h2>
+            <p className="access-card__copy">
+              Use the access code from Alex and Sierra to view the photographs.
+            </p>
 
-            <Button
-              onClick={handleContinue}
-              disabled={loading || (name ? !name.trim() : false)}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 text-lg flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Camera className="h-5 w-5" />
-              )}
-              {loading ? "Signing in…" : "Continue to Photos"}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            <form className="access-form" onSubmit={handleSubmit} noValidate>
+              <label htmlFor="access-code">Access code</label>
+              <div
+                className={`access-input ${error ? "has-error" : ""} ${
+                  loading ? "is-loading" : ""
+                }`}
+              >
+                <LockKeyhole aria-hidden="true" />
+                <input
+                  id="access-code"
+                  type={showCode ? "text" : "password"}
+                  value={code}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="Enter your code"
+                  autoComplete="one-time-code"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  disabled={loading}
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={error ? "access-error" : "access-hint"}
+                />
+                <button
+                  type="button"
+                  className="access-input__reveal"
+                  onClick={() => setShowCode((visible) => !visible)}
+                  aria-label={
+                    showCode ? "Hide access code" : "Show access code"
+                  }
+                  disabled={loading}
+                >
+                  {showCode ? (
+                    <EyeOff aria-hidden="true" />
+                  ) : (
+                    <Eye aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+
+              <div className="access-form__message" aria-live="polite">
+                {error ? (
+                  <p id="access-error" className="access-error">
+                    {error}
+                  </p>
+                ) : (
+                  <p id="access-hint">The code is case-sensitive.</p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="access-submit"
+                disabled={!code.trim() || loading}
+              >
+                <span>{loading ? "Opening gallery…" : "View photographs"}</span>
+                {loading ? (
+                  <LoaderCircle
+                    className="access-submit__loader"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <ArrowRight aria-hidden="true" />
+                )}
+              </button>
+            </form>
+
+            <p className="access-card__privacy">
+              <LockKeyhole aria-hidden="true" />
+              This gallery is shared privately with our guests.
+            </p>
+          </div>
+        </section>
+
+        <p className="access-date">July 12, 2025 · New York</p>
+      </main>
     </>
-  )
+  );
 }

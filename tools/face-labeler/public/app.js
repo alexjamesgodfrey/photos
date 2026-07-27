@@ -700,7 +700,7 @@
       ignore.type = "button";
       ignore.textContent = "Ignore";
       ignore.setAttribute("aria-label", `Ignore face ${index + 1}`);
-      ignore.addEventListener("click", () => ignoreFace(face, index, ignore));
+      ignore.addEventListener("click", () => ignoreFace(face, ignore));
       actions.append(unknown, ignore);
     }
 
@@ -1199,14 +1199,6 @@
 
   async function markClusterUnknown() {
     if (!state.activeClusterId || state.activeDetail?.status === "unknown") return;
-    const confirmed = await confirmAction({
-      title: "Mark this group as unknown?",
-      message:
-        "Keep these faces in the final review without assigning a person’s name. You can undo this action.",
-      confirmLabel: "Mark unknown",
-      danger: false,
-    });
-    if (!confirmed) return;
     await mutateCluster(
       `/api/clusters/${encodeURIComponent(state.activeClusterId)}/unknown`,
       undefined,
@@ -1220,18 +1212,6 @@
 
   async function ignoreActiveCluster() {
     if (!state.activeClusterId || state.activeDetail?.status === "ignored") return;
-    const faceCount =
-      state.activeDetail?.faces.length || state.activeDetail?.faceCount || 0;
-    const confirmed = await confirmAction({
-      title: "Ignore this entire group?",
-      message: `${pluralize(
-        faceCount,
-        "face",
-      )} will be excluded from person labeling. You can recover the group later or undo this action.`,
-      confirmLabel: "Ignore group",
-      danger: true,
-    });
-    if (!confirmed) return;
     await mutateCluster(
       `/api/clusters/${encodeURIComponent(state.activeClusterId)}/ignore`,
       undefined,
@@ -1327,15 +1307,7 @@
     }
   }
 
-  async function ignoreFace(face, index, button) {
-    const confirmed = await confirmAction({
-      title: `Ignore face ${index + 1}?`,
-      message:
-        "This face will be excluded from person labeling, while the rest of the group stays unchanged.",
-      confirmLabel: "Ignore face",
-      danger: true,
-    });
-    if (!confirmed) return;
+  async function ignoreFace(face, button) {
     await mutateFace(
       `/api/faces/${encodeURIComponent(face.id)}/ignore`,
       button,
@@ -1352,14 +1324,6 @@
   }
 
   async function markFaceUnknown(face, button) {
-    const confirmed = await confirmAction({
-      title: "Mark this face as unknown?",
-      message:
-        "Keep the face in your review data without connecting it to a named person.",
-      confirmLabel: "Mark unknown",
-      danger: false,
-    });
-    if (!confirmed) return;
     await mutateFace(
       `/api/faces/${encodeURIComponent(face.id)}/unknown`,
       button,

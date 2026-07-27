@@ -3,15 +3,12 @@ import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { listGalleryPhotos } from "@/lib/gallery-db";
 import { hasGallerySession } from "@/lib/gallery-session";
 import {
-  ArrowDown,
   ArrowUp,
   ChevronDown,
   Images,
   LoaderCircle,
-  LockKeyhole,
   LogOut,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
 import type { GetServerSideProps } from "next";
 import { Geist } from "next/font/google";
@@ -94,14 +91,10 @@ class ApiError extends Error {
   }
 }
 
-const sortOptions: Array<{
-  value: SortOrder;
-  label: string;
-  icon: typeof Sparkles;
-}> = [
-  { value: "album", label: "Captured order", icon: Sparkles },
-  { value: "newest", label: "Newest first", icon: ArrowDown },
-  { value: "oldest", label: "Oldest first", icon: ArrowUp },
+const sortOptions: Array<{ value: SortOrder; label: string }> = [
+  { value: "album", label: "Captured order" },
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
 ];
 
 async function fetchPhotos(url: string): Promise<PhotosPage> {
@@ -436,9 +429,6 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     );
   }
 
-  const SelectedSortIcon =
-    sortOptions.find((option) => option.value === sort)?.icon ?? Sparkles;
-
   return (
     <>
       <Head>
@@ -459,94 +449,55 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
           <div className="gallery-header__inner">
             <a
               className="gallery-brand"
-              href="#gallery-top"
-              aria-label="Gallery home"
+              href="#photographs"
+              aria-label="Alex and Sierra — wedding gallery"
             >
               <span>A</span>
               <i aria-hidden="true" />
               <span>S</span>
             </a>
 
-            <div className="gallery-header__title">
-              <p>Alex &amp; Sierra</p>
-              <h1>Wedding photographs</h1>
-            </div>
-
-            <button
-              type="button"
-              className="gallery-logout"
-              onClick={logout}
-              disabled={loggingOut}
-            >
-              {loggingOut ? (
-                <LoaderCircle
-                  className="gallery-logout__loader"
+            <div className="gallery-actions">
+              <label className="gallery-sort">
+                <span className="sr-only">Sort photographs</span>
+                <select
+                  value={sort}
+                  onChange={(event) =>
+                    changeSort(event.target.value as SortOrder)
+                  }
+                  aria-label="Sort photographs"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="gallery-sort__chevron"
                   aria-hidden="true"
                 />
-              ) : (
-                <LogOut aria-hidden="true" />
-              )}
-              <span>Lock gallery</span>
-            </button>
+              </label>
+
+              <button
+                type="button"
+                className="gallery-logout"
+                onClick={logout}
+                disabled={loggingOut}
+                aria-label="Lock gallery"
+              >
+                {loggingOut ? (
+                  <LoaderCircle
+                    className="gallery-logout__loader"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <LogOut aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </header>
-
-        <section
-          id="gallery-top"
-          className="gallery-hero"
-          aria-labelledby="gallery-heading"
-        >
-          <p className="gallery-hero__eyebrow">
-            <Sparkles aria-hidden="true" />
-            The complete collection
-          </p>
-          <h2 id="gallery-heading">
-            Every glance,
-            <br />
-            every happy tear.
-          </h2>
-          <p>
-            Take your time. Tap any photograph to see it in full, then use the
-            arrows or swipe to move through the day.
-          </p>
-        </section>
-
-        <section className="gallery-toolbar" aria-label="Gallery controls">
-          <div className="gallery-toolbar__inner">
-            <div className="gallery-count" aria-live="polite">
-              <Images aria-hidden="true" />
-              <span>
-                {initialLoading
-                  ? "Gathering photographs"
-                  : typeof total === "number" && total > photos.length
-                    ? `${photos.length} of ${total} loaded`
-                    : `${photos.length} photograph${photos.length === 1 ? "" : "s"}`}
-              </span>
-            </div>
-
-            <label className="gallery-sort">
-              <span className="sr-only">Sort photographs</span>
-              <SelectedSortIcon aria-hidden="true" />
-              <select
-                value={sort}
-                onChange={(event) =>
-                  changeSort(event.target.value as SortOrder)
-                }
-                aria-label="Sort photographs"
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="gallery-sort__chevron"
-                aria-hidden="true"
-              />
-            </label>
-          </div>
-        </section>
 
         <section
           id="photographs"
@@ -637,7 +588,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
                     aria-live="polite"
                   >
                     <LoaderCircle aria-hidden="true" />
-                    <span>Loading more memories…</span>
+                    <span>Loading more…</span>
                   </div>
                 ) : hasMore ? (
                   <button
@@ -647,27 +598,18 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
                     Load more photographs
                   </button>
                 ) : (
-                  <div className="gallery-finale">
-                    <span aria-hidden="true" />
-                    <p>You&apos;ve reached the end of a beautiful day.</p>
-                    <span aria-hidden="true" />
+                  <div className="gallery-finale" aria-hidden="true">
+                    <span />
+                    <p>
+                      A <em>&amp;</em> S
+                    </p>
+                    <span />
                   </div>
                 )}
               </div>
             </>
           )}
         </section>
-
-        <footer className="gallery-footer">
-          <div className="gallery-monogram" aria-hidden="true">
-            A <span>&amp;</span> S
-          </div>
-          <p>Thank you for celebrating with us.</p>
-          <div>
-            <LockKeyhole aria-hidden="true" />
-            Private gallery
-          </div>
-        </footer>
 
         {showTopButton && (
           <button

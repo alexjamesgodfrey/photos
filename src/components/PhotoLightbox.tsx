@@ -1,7 +1,7 @@
 "use client";
 
 import type { GalleryPhoto } from "@/components/PhotoCard";
-import { ArrowLeft, ArrowRight, CalendarDays, ImageOff, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ImageOff, X } from "lucide-react";
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -17,20 +17,6 @@ interface PhotoLightboxProps {
   onSelect: (id: string) => void;
   onClose: () => void;
   onMediaError?: () => void;
-}
-
-function formatCapturedAt(value: string | null) {
-  if (!value) return "Alex & Sierra’s wedding";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Alex & Sierra’s wedding";
-
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
 }
 
 function getPhotoAlt(
@@ -318,11 +304,6 @@ export function PhotoLightbox({
       >
         <ArrowRight aria-hidden="true" />
       </button>
-
-      <div className="lightbox__caption">
-        <CalendarDays aria-hidden="true" />
-        <span>{formatCapturedAt(selectedPhoto.capturedAt)}</span>
-      </div>
     </div>
   );
 }

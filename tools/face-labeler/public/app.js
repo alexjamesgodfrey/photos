@@ -938,7 +938,7 @@
     }
 
     const count = proposal.clusterIds.length;
-    elements.batchLabelHint.textContent = `${proposal.displayName} is the only named person among these suggestions. Already-labeled groups stay unchanged.`;
+    elements.batchLabelHint.textContent = `${proposal.displayName} is the only named person among these suggestions. One click labels every unreviewed match; Undo reverses the batch.`;
     elements.batchLabelButton.textContent = `Label ${pluralize(
       count,
       "group",
@@ -953,16 +953,6 @@
     const proposal = state.batchLabelProposal;
     if (!proposal) return;
     const count = proposal.clusterIds.length;
-    const confirmed = await confirmAction({
-      title: `Label ${pluralize(count, "group")} as ${proposal.displayName}?`,
-      message: `This assigns ${proposal.displayName} to ${pluralize(
-        count,
-        "unreviewed group",
-      )} in one action. Already-labeled groups will not be changed.`,
-      confirmLabel: `Label ${pluralize(count, "group")}`,
-      danger: false,
-    });
-    if (!confirmed) return;
 
     setBusy(elements.batchLabelButton, true);
     try {

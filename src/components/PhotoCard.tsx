@@ -1,6 +1,6 @@
 "use client";
 
-import { Expand, ImageIcon } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 export interface GalleryPhoto {
@@ -21,19 +21,6 @@ export interface PhotoCardProps {
   onOpen: (photo: GalleryPhoto) => void;
   onMediaError?: () => void;
   style?: CSSProperties;
-}
-
-function formatCapturedAt(value: string | null) {
-  if (!value) return "Wedding day";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Wedding day";
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
 }
 
 interface ImageState {
@@ -141,15 +128,6 @@ export function PhotoCard({
           {!loaded && !failed && (
             <span className="gallery-card__shimmer" aria-hidden="true" />
           )}
-
-          <span className="gallery-card__scrim" aria-hidden="true" />
-          <span className="gallery-card__meta">
-            <span>{formatCapturedAt(photo.capturedAt)}</span>
-            <span className="gallery-card__expand">
-              <Expand aria-hidden="true" />
-              <span className="sr-only">View larger</span>
-            </span>
-          </span>
         </span>
       </button>
     </article>

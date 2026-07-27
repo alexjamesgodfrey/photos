@@ -1,6 +1,6 @@
+import { PeopleMenu } from "@/components/PeopleMenu";
 import { type GalleryPhoto, PhotoCard } from "@/components/PhotoCard";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
-import { PeopleFilter } from "@/components/PeopleFilter";
 import {
   type GalleryPerson,
   isValidGalleryPersonSlug,
@@ -255,9 +255,6 @@ export default function GalleryPage({
     revalidateOnReconnect: true,
   });
   const people = peoplePage?.people ?? initialPeoplePage?.people ?? [];
-  const peopleLoading = peoplePage === undefined && !peopleError;
-  const selectedPerson =
-    people.find((person) => person.slug === personSlug) ?? null;
 
   const getKey = (pageIndex: number, previousPage: PhotosPage | null) => {
     if (previousPage && !previousPage.nextCursor) return null;
@@ -614,6 +611,14 @@ export default function GalleryPage({
             </a>
 
             <div className="gallery-actions">
+              {people.length > 0 && (
+                <PeopleMenu
+                  people={people}
+                  selectedSlug={personSlug}
+                  onSelect={changePerson}
+                />
+              )}
+
               <label className="gallery-sort">
                 <span className="sr-only">Sort photographs</span>
                 <select
@@ -660,40 +665,6 @@ export default function GalleryPage({
           className="gallery-content"
           aria-busy={initialLoading || loadingMore}
         >
-          {people.length ? (
-            <PeopleFilter
-              people={people}
-              selectedSlug={personSlug}
-              onSelect={changePerson}
-            />
-          ) : (
-            <section
-              className="people-filter people-filter--loading"
-              aria-label={
-                peopleLoading ? "Loading people" : "People unavailable"
-              }
-              aria-busy={peopleLoading}
-            >
-              <div>
-                <p className="people-filter__eyebrow">The guest list</p>
-                <h1>Find your people</h1>
-              </div>
-              {peopleLoading ? (
-                <div className="people-filter__skeletons" aria-hidden="true">
-                  {Array.from({ length: 9 }, (_, index) => (
-                    <span key={index} />
-                  ))}
-                </div>
-              ) : (
-                <p className="people-filter__empty" role="status">
-                  {peopleError
-                    ? "The guest list is taking a moment. The full gallery is still available below."
-                    : "No reviewed people are available yet. The full gallery is still available below."}
-                </p>
-              )}
-            </section>
-          )}
-
           <div
             id="photo-grid"
             className="gallery-photo-region"
@@ -701,35 +672,6 @@ export default function GalleryPage({
             role="region"
             aria-label="Photographs"
           >
-
-            {!initialLoading && !initialError && (
-              <div className="gallery-results" aria-live="polite">
-                <p>
-                  {personSlug ? (
-                    <>
-                      <strong>
-                        {selectedPerson?.displayName ?? "Selected person"}
-                      </strong>
-                      <span aria-hidden="true"> · </span>
-                      {total?.toLocaleString() ?? 0}{" "}
-                      {total === 1 ? "photograph" : "photographs"}
-                    </>
-                  ) : (
-                    <>
-                      <strong>Everyone</strong>
-                      <span aria-hidden="true"> · </span>
-                      {total?.toLocaleString() ?? 0} photographs
-                    </>
-                  )}
-                </p>
-                {personSlug && (
-                  <button type="button" onClick={() => changePerson(null)}>
-                    Clear person
-                  </button>
-                )}
-              </div>
-            )}
-
             {initialLoading ? (
               <SkeletonGallery />
             ) : initialError ? (

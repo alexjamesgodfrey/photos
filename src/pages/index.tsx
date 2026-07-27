@@ -158,7 +158,7 @@ export default function HomePage() {
           </form>
         </section>
 
-        <p className="access-date">July 12, 2025 · New York</p>
+        <p className="access-date">July 12, 2025</p>
       </main>
     </>
   );

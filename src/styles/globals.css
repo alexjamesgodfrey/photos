@@ -391,8 +391,9 @@
   border-bottom: 1px solid rgba(62, 52, 42, 0.11);
   background: rgba(247, 243, 236, 0.83);
   backdrop-filter: blur(18px) saturate(1.1);
+  /* No will-change here: a permanent transform hint would make the header
+     the containing block for the fixed-position people panel on mobile. */
   transition: transform 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
-  will-change: transform;
 }
 
 .gallery-header.is-hidden {
@@ -693,6 +694,8 @@
   overflow-y: auto;
   padding: 0.45rem;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .people-menu__option {
@@ -1329,6 +1332,17 @@
     right: 0.625rem;
     left: 0.625rem;
     width: auto;
+  }
+
+  .people-menu__list {
+    max-height: calc(
+      100svh - 12rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+  }
+
+  /* 16px stops iOS from zooming the page when the search field is focused. */
+  .people-menu__search input {
+    font-size: 1rem;
   }
 
   .gallery-logout,

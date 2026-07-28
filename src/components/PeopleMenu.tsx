@@ -31,6 +31,9 @@ function normalizeSearch(value: string) {
     .trim();
 }
 
+// The couple leads the guest list; everyone else stays alphabetical.
+const FEATURED_NAMES = ["alex", "sierra"];
+
 function PersonAvatar({
   person,
   eager,
@@ -106,14 +109,28 @@ export function PeopleMenu({ people, selectedSlug, onSelect }: PeopleMenuProps) 
 
   const selected = people.find((person) => person.slug === selectedSlug) ?? null;
   const normalizedQuery = normalizeSearch(query);
+  const orderedPeople = useMemo(() => {
+    const featured: GalleryPerson[] = [];
+    const rest: GalleryPerson[] = [];
+
+    for (const person of people) {
+      const featuredIndex = FEATURED_NAMES.indexOf(
+        normalizeSearch(person.displayName),
+      );
+      if (featuredIndex >= 0) featured[featuredIndex] = person;
+      else rest.push(person);
+    }
+
+    return [...featured.filter(Boolean), ...rest];
+  }, [people]);
   const visiblePeople = useMemo(
     () =>
       normalizedQuery
-        ? people.filter((person) =>
+        ? orderedPeople.filter((person) =>
             normalizeSearch(person.displayName).includes(normalizedQuery),
           )
-        : people,
-    [normalizedQuery, people],
+        : orderedPeople,
+    [normalizedQuery, orderedPeople],
   );
 
   const close = useCallback((focusTrigger = false) => {
@@ -133,8 +150,27 @@ export function PeopleMenu({ people, selectedSlug, onSelect }: PeopleMenuProps) 
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [close, open]);
 
+  // Lock the page while the menu is open so touch scrolling stays inside the
+  // people list instead of dragging the gallery underneath it.
   useEffect(() => {
-    if (open) searchRef.current?.focus({ preventScroll: true });
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    // Autofocus only where a hardware keyboard is likely; on touch devices
+    // the software keyboard would cover the list the guest wants to scroll.
+    if (
+      open &&
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches
+    ) {
+      searchRef.current?.focus({ preventScroll: true });
+    }
   }, [open]);
 
   const choose = (slug: string | null) => {

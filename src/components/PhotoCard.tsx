@@ -43,6 +43,7 @@ export function PhotoCard({
     failed: false,
   }));
   const reportedFailureUrl = useRef<string | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   const imageStateIsCurrent = imageState.url === photo.thumbUrl;
   const loaded = imageStateIsCurrent && imageState.loaded;
@@ -56,6 +57,33 @@ export function PhotoCard({
     );
     reportedFailureUrl.current = null;
   }, [photo.thumbUrl]);
+
+  // The first eager images can finish downloading before React hydrates, so
+  // their load/error events fire with no listener attached and the card would
+  // shimmer forever. Reconcile against the DOM once we're mounted.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!image || !image.complete) return;
+
+    if (image.naturalWidth > 0) {
+      setImageState((current) =>
+        current.url === photo.thumbUrl && current.loaded
+          ? current
+          : { url: photo.thumbUrl, loaded: true, failed: false },
+      );
+      return;
+    }
+
+    setImageState((current) =>
+      current.url === photo.thumbUrl && current.failed
+        ? current
+        : { url: photo.thumbUrl, loaded: false, failed: true },
+    );
+    if (reportedFailureUrl.current !== photo.thumbUrl) {
+      reportedFailureUrl.current = photo.thumbUrl;
+      onMediaError?.();
+    }
+  }, [onMediaError, photo.thumbUrl]);
 
   const safeWidth = photo.width > 0 ? photo.width : 4;
   const safeHeight = photo.height > 0 ? photo.height : 5;
@@ -89,6 +117,7 @@ export function PhotoCard({
           {!failed ? (
             <img
               key={photo.thumbUrl}
+              ref={imageRef}
               src={photo.thumbUrl}
               alt=""
               aria-hidden="true"

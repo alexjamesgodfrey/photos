@@ -44,6 +44,7 @@ function PersonAvatar({
     loaded: false,
     failed: false,
   }));
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const isCurrent = state.url === currentUrl;
   const showImage = Boolean(currentUrl) && !(isCurrent && state.failed);
   const loaded = isCurrent && state.loaded;
@@ -56,6 +57,18 @@ function PersonAvatar({
     );
   }, [currentUrl]);
 
+  // Cached avatars can be complete before the load listener attaches.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!image || !image.complete || image.naturalWidth === 0) return;
+
+    setState((current) =>
+      current.url === currentUrl && current.loaded
+        ? current
+        : { url: currentUrl, loaded: true, failed: false },
+    );
+  }, [currentUrl]);
+
   return (
     <span
       className={`people-menu__avatar ${loaded ? "is-loaded" : ""}`}
@@ -64,6 +77,7 @@ function PersonAvatar({
       <span>{person.displayName.slice(0, 1).toLocaleUpperCase("en-US")}</span>
       {showImage && (
         <img
+          ref={imageRef}
           src={currentUrl}
           alt=""
           width={64}

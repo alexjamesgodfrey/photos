@@ -793,8 +793,7 @@ export default function GalleryPage({
                       page.photos[0]?.key ?? "empty"
                     }`}
                     photos={page.photos}
-                    defaultContainerWidth={1280}
-                    breakpoints={[360, 600, 900, 1280, 1640]}
+                    defaultContainerWidth={375}
                     spacing={(containerWidth) =>
                       containerWidth < 600 ? 8 : 12
                     }

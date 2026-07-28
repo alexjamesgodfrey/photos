@@ -67,6 +67,7 @@ export function PhotoLightbox({
   const [isClosing, setIsClosing] = useState(false);
   const [playing, setPlaying] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const pointerStart = useRef<number | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const reportedFailureUrl = useRef<string | null>(null);
@@ -122,6 +123,19 @@ export function PhotoLightbox({
         : { url: currentDisplayUrl, loaded: false, failed: false },
     );
     reportedFailureUrl.current = null;
+  }, [currentDisplayUrl]);
+
+  // Cached images can already be complete when this photo mounts, in which
+  // case the load event never fires. Reconcile against the DOM.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!image || !image.complete || image.naturalWidth === 0) return;
+
+    setImageState((current) =>
+      current.url === currentDisplayUrl && current.loaded
+        ? current
+        : { url: currentDisplayUrl, loaded: true, failed: false },
+    );
   }, [currentDisplayUrl]);
 
   useEffect(() => {
@@ -284,6 +298,7 @@ export function PhotoLightbox({
 
         <img
           key={selectedPhoto.displayUrl}
+          ref={imageRef}
           src={selectedPhoto.displayUrl}
           alt={getPhotoAlt(
             selectedIndex,

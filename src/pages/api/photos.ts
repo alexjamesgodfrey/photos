@@ -1,6 +1,7 @@
 import {
   InvalidGalleryCursorError,
   isValidGalleryPersonSlug,
+  isValidGalleryShuffleSeed,
   listGalleryPhotos,
   type GallerySort,
 } from "@/lib/gallery-db"
@@ -9,7 +10,12 @@ import type { NextApiRequest, NextApiResponse } from "next"
 
 const DEFAULT_PAGE_SIZE = 60
 const MAX_PAGE_SIZE = 120
-const VALID_SORTS = new Set<GallerySort>(["album", "newest", "oldest"])
+const VALID_SORTS = new Set<GallerySort>([
+  "album",
+  "newest",
+  "oldest",
+  "shuffle",
+])
 
 function singleQueryValue(
   value: string | string[] | undefined
@@ -68,8 +74,22 @@ export default async function handler(
     return response.status(400).json({ error: "Invalid person" })
   }
 
+  if (Array.isArray(request.query.seed)) {
+    return response.status(400).json({ error: "Invalid seed" })
+  }
+  const seed = singleQueryValue(request.query.seed)
+  if (sort === "shuffle" && !isValidGalleryShuffleSeed(seed)) {
+    return response.status(400).json({ error: "Invalid seed" })
+  }
+
   try {
-    const result = await listGalleryPhotos({ limit, sort, cursor, person })
+    const result = await listGalleryPhotos({
+      limit,
+      sort,
+      cursor,
+      person,
+      seed: sort === "shuffle" ? seed : undefined,
+    })
     return response.status(200).json(result)
   } catch (error) {
     if (error instanceof InvalidGalleryCursorError) {

@@ -260,6 +260,126 @@ test("cursors reject malformed, non-canonical, and sort-mismatched input", () =>
   )
 })
 
+test("shuffled listings use seeded md5 keysets with stable opaque cursors", async (t) => {
+  process.env.DATABASE_URL =
+    "postgresql://gallery:password@mock.pg.psdb.cloud/postgres"
+  process.env.GALLERY_ALBUM_ID = "wedding"
+  process.env.MEDIA_BASE_URL = "https://media.example.test"
+  process.env.MEDIA_SIGNING_SECRET = MEDIA_SECRET
+  process.env.MEDIA_URL_TTL_SECONDS = "21600"
+
+  const photoResponses = [
+    [
+      mockPhotoRow("photo_0001", 1),
+      mockPhotoRow("photo_0002", 2),
+      mockPhotoRow("photo_0003", 3),
+    ],
+    [mockPhotoRow("photo_0003", 3)],
+  ]
+  const calls: Array<{ query: string; params: unknown[] }> = []
+
+  neonConfig.fetchFunction = async (
+    _input: string | URL | Request,
+    init?: RequestInit
+  ) => {
+    const body = JSON.parse(String(init?.body)) as {
+      query: string
+      params: unknown[]
+    }
+    calls.push(body)
+    const result = body.query.includes("FROM wedding_photos.albums")
+      ? mockNeonResult(["photo_count"], [["990"]])
+      : mockNeonResult(PHOTO_FIELDS, photoResponses.shift() ?? [])
+    return new Response(JSON.stringify(result), {
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  t.after(() => {
+    neonConfig.fetchFunction = undefined
+  })
+
+  const seed = "a1b2c3d4"
+  const expectedKey = createHash("md5")
+    .update(`${seed}:photo_0002`)
+    .digest("hex")
+
+  const firstPage = await listGalleryPhotos({
+    limit: 2,
+    sort: "shuffle",
+    seed,
+  })
+  assert.equal(firstPage.photos.length, 2)
+  assert.ok(firstPage.nextCursor)
+  assert.deepEqual(
+    decodeGalleryCursor(firstPage.nextCursor!, "shuffle", undefined, seed),
+    {
+      sort: "shuffle",
+      seed,
+      shuffleKey: expectedKey,
+      id: "photo_0002",
+    }
+  )
+  assert.throws(
+    () =>
+      decodeGalleryCursor(
+        firstPage.nextCursor!,
+        "shuffle",
+        undefined,
+        "deadbeef"
+      ),
+    InvalidGalleryCursorError
+  )
+  assert.throws(
+    () => decodeGalleryCursor(firstPage.nextCursor!, "shuffle"),
+    InvalidGalleryCursorError
+  )
+  assert.throws(
+    () => decodeGalleryCursor(firstPage.nextCursor!, "album"),
+    InvalidGalleryCursorError
+  )
+
+  const secondPage = await listGalleryPhotos({
+    limit: 2,
+    sort: "shuffle",
+    seed,
+    cursor: firstPage.nextCursor!,
+  })
+  assert.equal(secondPage.photos.length, 1)
+  assert.equal(secondPage.nextCursor, null)
+
+  const callCountBeforeRejectedInputs = calls.length
+  await assert.rejects(
+    () => listGalleryPhotos({ limit: 2, sort: "shuffle" }),
+    /Invalid gallery shuffle seed/
+  )
+  await assert.rejects(
+    () => listGalleryPhotos({ limit: 2, sort: "shuffle", seed: "XYZ" }),
+    /Invalid gallery shuffle seed/
+  )
+  assert.equal(calls.length, callCountBeforeRejectedInputs)
+
+  const photoCalls = calls.filter((call) =>
+    call.query.includes("original_filename")
+  )
+  assert.equal(photoCalls.length, 2)
+  assert.deepEqual(photoCalls[0].params, ["wedding", `${seed}:`, "3"])
+  assert.match(
+    photoCalls[0].query,
+    /ORDER BY md5\(\$2 \|\| ph\.id\) ASC, ph\.id ASC/
+  )
+  assert.deepEqual(photoCalls[1].params, [
+    "wedding",
+    `${seed}:`,
+    expectedKey,
+    "photo_0002",
+    "3",
+  ])
+  assert.match(
+    photoCalls[1].query,
+    /AND \(md5\(\$2 \|\| ph\.id\), ph\.id\) > \(\$3, \$4\)/
+  )
+})
+
 test("person slugs accept only canonical bounded URL-safe values", () => {
   for (const value of [
     "person-alex",

@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   LogOut,
   RefreshCw,
+  Shuffle,
 } from "lucide-react";
 import type { GetServerSideProps } from "next";
 import { Geist } from "next/font/google";
@@ -30,7 +31,7 @@ const PAGE_SIZE = 48;
 const MEDIA_REFRESH_LEAD_MS = 60_000;
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
-type SortOrder = "album" | "newest" | "oldest";
+type SortOrder = "album" | "newest" | "oldest" | "shuffle";
 
 interface PhotosPage {
   photos: GalleryPhoto[];
@@ -158,10 +159,18 @@ class ApiError extends Error {
 }
 
 const sortOptions: Array<{ value: SortOrder; label: string }> = [
-  { value: "album", label: "Captured order" },
+  { value: "album", label: "Story order" },
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
 ];
+
+function newShuffleSeed() {
+  const bytes = new Uint8Array(8);
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+}
 
 async function fetchPhotos(url: string): Promise<PhotosPage> {
   const response = await fetch(url, {
@@ -232,8 +241,10 @@ export default function GalleryPage({
   const router = useRouter();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [sort, setSort] = useState<SortOrder>("album");
+  const [shuffleSeed, setShuffleSeed] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showTopButton, setShowTopButton] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const mediaRefreshPromiseRef = useRef<{
     key: string;
@@ -268,6 +279,10 @@ export default function GalleryPage({
       params.set("cursor", previousPage.nextCursor);
     }
     if (personSlug) params.set("person", personSlug);
+    if (sort === "shuffle") {
+      if (!shuffleSeed) return null;
+      params.set("seed", shuffleSeed);
+    }
 
     return `/api/photos?${params.toString()}`;
   };
@@ -331,7 +346,7 @@ export default function GalleryPage({
       ].join(":"),
     [data, peoplePage?.mediaExpiresAt],
   );
-  const mediaRefreshKey = `${sort}:${personSlug ?? "everyone"}:${mediaGenerationKey}`;
+  const mediaRefreshKey = `${sort}:${shuffleSeed ?? "-"}:${personSlug ?? "everyone"}:${mediaGenerationKey}`;
 
   const revalidateMedia = useCallback((): Promise<unknown> => {
     if (!hasLoadedPages && !peoplePage) return Promise.resolve();
@@ -498,7 +513,25 @@ export default function GalleryPage({
   }, [error, hasMore, isValidating, setSize]);
 
   useEffect(() => {
-    const onScroll = () => setShowTopButton(window.scrollY > 900);
+    let lastY = window.scrollY;
+
+    const onScroll = () => {
+      const y = window.scrollY;
+      setShowTopButton(y > 900);
+
+      // Collapse the header while reading downward; bring it back the moment
+      // the guest scrolls up or returns near the top.
+      if (y < 80) {
+        setHeaderHidden(false);
+      } else if (y - lastY > 4) {
+        setHeaderHidden(true);
+      } else if (lastY - y > 4) {
+        setHeaderHidden(false);
+      }
+
+      lastY = y;
+    };
+
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -530,11 +563,27 @@ export default function GalleryPage({
 
   const changeSort = (nextSort: SortOrder) => {
     if (nextSort === sort) return;
+    if (nextSort === "shuffle") {
+      shuffle();
+      return;
+    }
 
     withGalleryTransition(() => {
       setSelectedId(null);
       void setSize(1);
+      setShuffleSeed(null);
       setSort(nextSort);
+    });
+  };
+
+  const shuffle = () => {
+    const seed = newShuffleSeed();
+
+    withGalleryTransition(() => {
+      setSelectedId(null);
+      void setSize(1);
+      setShuffleSeed(seed);
+      setSort("shuffle");
     });
   };
 
@@ -591,6 +640,7 @@ export default function GalleryPage({
           content="A private collection of Alex and Sierra’s wedding photographs."
         />
         <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta name="theme-color" content="#f7f3ec" key="theme-color" />
       </Head>
 
       <main className={`gallery-page ${geist.className}`}>
@@ -598,7 +648,9 @@ export default function GalleryPage({
           Skip to photographs
         </a>
 
-        <header className="gallery-header">
+        <header
+          className={`gallery-header ${headerHidden ? "is-hidden" : ""}`}
+        >
           <div className="gallery-header__inner">
             <a
               className="gallery-brand"
@@ -628,6 +680,9 @@ export default function GalleryPage({
                   }
                   aria-label="Sort photographs"
                 >
+                  {sort === "shuffle" && (
+                    <option value="shuffle">Shuffled</option>
+                  )}
                   {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -639,6 +694,22 @@ export default function GalleryPage({
                   aria-hidden="true"
                 />
               </label>
+
+              <button
+                type="button"
+                className={`gallery-shuffle ${
+                  sort === "shuffle" ? "is-active" : ""
+                }`}
+                onClick={shuffle}
+                aria-label={
+                  sort === "shuffle"
+                    ? "Shuffle photographs again"
+                    : "Shuffle photographs"
+                }
+                title="Shuffle"
+              >
+                <Shuffle key={shuffleSeed ?? "initial"} aria-hidden="true" />
+              </button>
 
               <button
                 type="button"

@@ -1,7 +1,8 @@
 "use client";
 
 import type { GalleryPhoto } from "@/components/PhotoCard";
-import { ArrowLeft, ArrowRight, ImageOff, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ImageOff, Pause, Play, X } from "lucide-react";
+import Head from "next/head";
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -64,6 +65,7 @@ export function PhotoLightbox({
     failed: false,
   }));
   const [isClosing, setIsClosing] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const pointerStart = useRef<number | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -96,6 +98,22 @@ export function PhotoLightbox({
     if (!hasNext) return;
     onSelect(photos[selectedIndex + 1].id);
   }, [hasNext, onSelect, photos, selectedIndex]);
+
+  // Slideshow: advance once the current photograph has been visible for a
+  // beat, looping back to the first photo at the end of the collection.
+  useEffect(() => {
+    if (!playing) return;
+
+    const timer = window.setInterval(() => {
+      if (hasNext) {
+        next();
+      } else if (photos.length > 1) {
+        onSelect(photos[0].id);
+      }
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [hasNext, next, onSelect, photos, playing]);
 
   useEffect(() => {
     setImageState((current) =>
@@ -211,6 +229,10 @@ export function PhotoLightbox({
         tabIndex={-1}
       />
 
+      <Head>
+        <meta name="theme-color" content="#0a0a09" key="theme-color" />
+      </Head>
+
       <div className="lightbox__topbar">
         <div className="lightbox__count" aria-live="polite">
           {selectedIndex + 1}
@@ -219,15 +241,27 @@ export function PhotoLightbox({
           {total ?? photos.length}
         </div>
 
-        <button
-          ref={closeButtonRef}
-          type="button"
-          className="lightbox__icon-button"
-          onClick={close}
-          aria-label="Close photo viewer"
-        >
-          <X aria-hidden="true" />
-        </button>
+        <div className="lightbox__actions">
+          <button
+            type="button"
+            className={`lightbox__icon-button ${playing ? "is-active" : ""}`}
+            onClick={() => setPlaying((current) => !current)}
+            aria-label={playing ? "Pause slideshow" : "Play slideshow"}
+            aria-pressed={playing}
+          >
+            {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+          </button>
+
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="lightbox__icon-button"
+            onClick={close}
+            aria-label="Close photo viewer"
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <div className="lightbox__stage">

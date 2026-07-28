@@ -97,6 +97,7 @@ export default function HomePage() {
           content="A private collection of memories from Alex and Sierra’s wedding."
         />
         <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta name="theme-color" content="#18231d" key="theme-color" />
         <meta property="og:title" content="Alex & Sierra — Wedding Photos" />
         <meta
           property="og:description"

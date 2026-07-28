@@ -1,8 +1,8 @@
 import { neon, neonConfig, type NeonQueryFunction } from "@neondatabase/serverless"
 import { Buffer } from "node:buffer"
-import { createHmac } from "node:crypto"
+import { createHash, createHmac } from "node:crypto"
 
-export type GallerySort = "album" | "newest" | "oldest"
+export type GallerySort = "album" | "newest" | "oldest" | "shuffle"
 
 export interface GalleryPhoto {
   id: string
@@ -36,6 +36,13 @@ export type GalleryCursor =
       sort: "newest" | "oldest"
       capturedAt: string | null
       albumPosition: number
+      id: string
+      person?: string
+    }
+  | {
+      sort: "shuffle"
+      seed: string
+      shuffleKey: string
       id: string
       person?: string
     }
@@ -84,6 +91,8 @@ const MAX_CURSOR_ID_LENGTH = 512
 const MAX_POSTGRES_INTEGER = 2_147_483_647
 const MAX_PERSON_SLUG_LENGTH = 128
 const PERSON_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const SHUFFLE_SEED_PATTERN = /^[a-f0-9]{8,64}$/
+const SHUFFLE_KEY_PATTERN = /^[a-f0-9]{32}$/
 const AVATAR_KEY_PATTERN =
   /^wedding\/people\/person_[a-f0-9]{32}\/avatar-[a-f0-9]{20}\.webp$/
 
@@ -220,6 +229,16 @@ export function isValidGalleryPersonSlug(value: unknown): value is string {
   )
 }
 
+export function isValidGalleryShuffleSeed(value: unknown): value is string {
+  return typeof value === "string" && SHUFFLE_SEED_PATTERN.test(value)
+}
+
+// Must stay equivalent to the SQL ordering expression md5($seed || ':' || id)
+// so cursors computed here continue exactly where a page's last row sorted.
+function shuffleKeyFor(seed: string, id: string): string {
+  return createHash("md5").update(`${seed}:${id}`).digest("hex")
+}
+
 function validCursorTimestamp(value: unknown): value is string | null {
   if (value === null) return true
   if (
@@ -237,7 +256,6 @@ function validCursorTimestamp(value: unknown): value is string | null {
 
 export function encodeGalleryCursor(cursor: GalleryCursor): string {
   if (
-    !validCursorPosition(cursor.albumPosition) ||
     !validCursorId(cursor.id) ||
     (cursor.person !== undefined &&
       !isValidGalleryPersonSlug(cursor.person))
@@ -245,29 +263,49 @@ export function encodeGalleryCursor(cursor: GalleryCursor): string {
     return invalidCursor()
   }
 
-  const payload =
-    cursor.sort === "album"
-      ? {
-          v: 2,
-          s: cursor.sort,
-          f: cursor.person ?? null,
-          p: cursor.albumPosition,
-          i: cursor.id,
-        }
-      : {
-          v: 2,
-          s: cursor.sort,
-          f: cursor.person ?? null,
-          t: cursor.capturedAt,
-          p: cursor.albumPosition,
-          i: cursor.id,
-        }
+  let payload: Record<string, unknown>
 
-  if (
-    cursor.sort !== "album" &&
-    !validCursorTimestamp(cursor.capturedAt)
-  ) {
-    return invalidCursor()
+  if (cursor.sort === "shuffle") {
+    if (
+      !isValidGalleryShuffleSeed(cursor.seed) ||
+      !SHUFFLE_KEY_PATTERN.test(cursor.shuffleKey)
+    ) {
+      return invalidCursor()
+    }
+    payload = {
+      v: 2,
+      s: cursor.sort,
+      f: cursor.person ?? null,
+      r: cursor.seed,
+      k: cursor.shuffleKey,
+      i: cursor.id,
+    }
+  } else if (cursor.sort === "album") {
+    if (!validCursorPosition(cursor.albumPosition)) {
+      return invalidCursor()
+    }
+    payload = {
+      v: 2,
+      s: cursor.sort,
+      f: cursor.person ?? null,
+      p: cursor.albumPosition,
+      i: cursor.id,
+    }
+  } else {
+    if (
+      !validCursorPosition(cursor.albumPosition) ||
+      !validCursorTimestamp(cursor.capturedAt)
+    ) {
+      return invalidCursor()
+    }
+    payload = {
+      v: 2,
+      s: cursor.sort,
+      f: cursor.person ?? null,
+      t: cursor.capturedAt,
+      p: cursor.albumPosition,
+      i: cursor.id,
+    }
   }
 
   return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")
@@ -276,11 +314,19 @@ export function encodeGalleryCursor(cursor: GalleryCursor): string {
 export function decodeGalleryCursor(
   encodedCursor: string,
   expectedSort: GallerySort,
-  expectedPerson?: string
+  expectedPerson?: string,
+  expectedSeed?: string
 ): GalleryCursor {
   if (
     expectedPerson !== undefined &&
     !isValidGalleryPersonSlug(expectedPerson)
+  ) {
+    return invalidCursor()
+  }
+  if (
+    expectedSort === "shuffle"
+      ? !isValidGalleryShuffleSeed(expectedSeed)
+      : expectedSeed !== undefined
   ) {
     return invalidCursor()
   }
@@ -308,13 +354,36 @@ export function decodeGalleryCursor(
   if (!isRecord(parsed) || parsed.v !== 2 || parsed.s !== expectedSort) {
     return invalidCursor()
   }
-  if (!validCursorPosition(parsed.p) || !validCursorId(parsed.i)) {
+  if (!validCursorId(parsed.i)) {
     return invalidCursor()
   }
   if (
     (parsed.f !== null && !isValidGalleryPersonSlug(parsed.f)) ||
     parsed.f !== (expectedPerson ?? null)
   ) {
+    return invalidCursor()
+  }
+
+  if (expectedSort === "shuffle") {
+    if (
+      !hasExactKeys(parsed, ["v", "s", "f", "r", "k", "i"]) ||
+      !isValidGalleryShuffleSeed(parsed.r) ||
+      parsed.r !== expectedSeed ||
+      typeof parsed.k !== "string" ||
+      !SHUFFLE_KEY_PATTERN.test(parsed.k)
+    ) {
+      return invalidCursor()
+    }
+    return {
+      sort: "shuffle",
+      seed: parsed.r,
+      shuffleKey: parsed.k,
+      id: parsed.i,
+      ...(parsed.f === null ? {} : { person: parsed.f }),
+    }
+  }
+
+  if (!validCursorPosition(parsed.p)) {
     return invalidCursor()
   }
 
@@ -398,6 +467,7 @@ function buildPhotoQuery(
   albumId: string,
   sort: GallerySort,
   person: string | undefined,
+  seed: string | undefined,
   cursor: GalleryCursor | undefined,
   requestedRows: number
 ): PhotoQuery {
@@ -427,6 +497,40 @@ function buildPhotoQuery(
       ${personFilter}
   `
 
+  if (sort === "shuffle") {
+    if (!seed) return invalidCursor()
+
+    const shufflePrefixParameter = addParameter(`${seed}:`)
+    const shuffleKey = `md5(${shufflePrefixParameter} || ph.id)`
+
+    if (!cursor) {
+      const limitParameter = addParameter(requestedRows)
+      return {
+        text: `${select}
+          ORDER BY ${shuffleKey} ASC, ph.id ASC
+          LIMIT ${limitParameter}
+        `,
+        params,
+      }
+    }
+
+    if (cursor.sort !== "shuffle") {
+      return invalidCursor()
+    }
+
+    const keyParameter = addParameter(cursor.shuffleKey)
+    const idParameter = addParameter(cursor.id)
+    const limitParameter = addParameter(requestedRows)
+    return {
+      text: `${select}
+        AND (${shuffleKey}, ph.id) > (${keyParameter}, ${idParameter})
+        ORDER BY ${shuffleKey} ASC, ph.id ASC
+        LIMIT ${limitParameter}
+      `,
+      params,
+    }
+  }
+
   if (sort === "album") {
     if (!cursor) {
       const limitParameter = addParameter(requestedRows)
@@ -437,6 +541,10 @@ function buildPhotoQuery(
         `,
         params,
       }
+    }
+
+    if (cursor.sort !== "album") {
+      return invalidCursor()
     }
 
     const positionParameter = addParameter(cursor.albumPosition)
@@ -468,7 +576,7 @@ function buildPhotoQuery(
     }
   }
 
-  if (cursor.sort === "album") {
+  if (cursor.sort === "album" || cursor.sort === "shuffle") {
     return invalidCursor()
   }
 
@@ -524,8 +632,22 @@ function normalizeCapturedAt(value: string | Date | null): string | null {
 function rowCursor(
   row: GalleryPhotoRow,
   sort: GallerySort,
-  person: string | undefined
+  person: string | undefined,
+  seed: string | undefined
 ): GalleryCursor {
+  if (sort === "shuffle") {
+    if (!seed) {
+      throw new Error("A shuffle cursor requires a seed")
+    }
+    return {
+      sort,
+      seed,
+      shuffleKey: shuffleKeyFor(seed, row.id),
+      id: row.id,
+      ...(person ? { person } : {}),
+    }
+  }
+
   const albumPosition = Number(row.album_position)
   if (!validCursorPosition(albumPosition)) {
     throw new Error("Database returned an invalid album position")
@@ -554,6 +676,7 @@ export async function listGalleryPhotos(options: {
   sort: GallerySort
   cursor?: string
   person?: string
+  seed?: string
 }): Promise<{
   photos: GalleryPhoto[]
   total: number
@@ -568,17 +691,26 @@ export async function listGalleryPhotos(options: {
   ) {
     throw new RangeError("Invalid gallery page size")
   }
-  if (sort !== "album" && sort !== "newest" && sort !== "oldest") {
+  if (
+    sort !== "album" &&
+    sort !== "newest" &&
+    sort !== "oldest" &&
+    sort !== "shuffle"
+  ) {
     throw new TypeError("Invalid gallery sort")
   }
   if (person !== undefined && !isValidGalleryPersonSlug(person)) {
     throw new TypeError("Invalid gallery person slug")
   }
+  if (sort === "shuffle" && !isValidGalleryShuffleSeed(options.seed)) {
+    throw new TypeError("Invalid gallery shuffle seed")
+  }
+  const seed = sort === "shuffle" ? options.seed : undefined
 
   const cursor =
     options.cursor === undefined
       ? undefined
-      : decodeGalleryCursor(options.cursor, sort, person)
+      : decodeGalleryCursor(options.cursor, sort, person, seed)
   const sql = database()
   const albumId = galleryAlbumId()
   const signal = AbortSignal.timeout(DATABASE_TIMEOUT_MS)
@@ -587,6 +719,7 @@ export async function listGalleryPhotos(options: {
     albumId,
     sort,
     person,
+    seed,
     cursor,
     limit + 1
   )
@@ -627,7 +760,7 @@ export async function listGalleryPhotos(options: {
     total,
     nextCursor:
       hasMore && lastRow
-        ? encodeGalleryCursor(rowCursor(lastRow, sort, person))
+        ? encodeGalleryCursor(rowCursor(lastRow, sort, person, seed))
         : null,
     mediaExpiresAt,
   }

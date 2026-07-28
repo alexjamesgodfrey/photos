@@ -160,7 +160,16 @@ The sole production destination is the existing private R2 bucket
 `alex-sierra-wedding-photos`. The uploader does not accept a bucket argument,
 cannot create a bucket, and never creates or stores a Cloudflare token. It also
 rejects keys outside `wedding/` and any upload plan that drops the immutable
-one-year R2 object policy.
+one-year R2 object policy. It accepts only two audited manifest shapes:
+
+- source-derived `thumb` and `display` derivatives from the media ingest;
+- one metadata-free `avatar` WebP selected by the completed local face review.
+
+Avatar keys must have the exact content-addressed form
+`wedding/people/<person-id>/avatar-<sha-prefix>.webp`. Their source paths must
+resolve inside an ignored `.media-staging/**/crops/` directory. The uploader
+rejects a missing file, path escape, symlink escape, person/key mismatch, byte
+count mismatch, SHA-256 mismatch, wrong MIME type, or mutable cache policy.
 
 Use an existing named Wrangler authentication profile and the exact Cloudflare
 account ID that owns the bucket:
@@ -228,6 +237,27 @@ an atomic lock protects pending-set calculation, PUTs, and ledger appends.
 Failed objects are retried with bounded backoff and remain pending on the next
 run. The uploader’s `--force` option re-uploads everything; it is not forwarded
 to Wrangler’s unrelated data-catalog `--force` flag.
+
+After face review is complete, generate and upload the selected avatars
+separately:
+
+```bash
+npm run faces:export -- --apply
+
+npm run faces:upload-avatars -- \
+  --profile "$WEDDING_WRANGLER_PROFILE" \
+  --account-id "$WEDDING_CLOUDFLARE_ACCOUNT_ID" \
+  --wrangler "$WRANGLER_BIN" \
+  --concurrency 4 \
+  --apply
+```
+
+The private plan is
+`.media-staging/faces/export/avatar-upload-plan.ndjson`. Never construct a plan
+from every file in `.media-staging/faces/crops`; only the one verified avatar
+selected for each named person belongs in R2. Re-run the avatar command until
+every ledger-backed object is remotely downloaded and hash-verified before
+applying `.media-staging/faces/export/people.sql`.
 
 Wrangler launches one process per object. Start with concurrency 4, watch CPU,
 disk, and network utilization, and raise it gradually (usually no higher than

@@ -4,5 +4,6 @@ database/
 docs/
 scripts/
 tests/
+tools/
 .env*
 *.tsbuildinfo

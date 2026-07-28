@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="theme-color" content="#f5f2ec">
+    <meta name="csrf-token" content="__FACE_LABELER_CSRF__">
+    <title>People labeler</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#cluster-detail">Skip to the active group</a>
+
+    <svg class="icon-library" aria-hidden="true">
+      <symbol id="icon-mark" viewBox="0 0 24 24">
+        <path d="M7 5.5A3.5 3.5 0 1 0 7 12a3.5 3.5 0 0 0 0-7Zm10 0a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM2.75 19c.45-3.07 2.05-4.6 4.8-4.6 2.74 0 4.34 1.53 4.79 4.6M11.66 19c.45-3.07 2.05-4.6 4.8-4.6 2.74 0 4.34 1.53 4.79 4.6"/>
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="10.75" cy="10.75" r="6.5"/>
+        <path d="m15.5 15.5 4.25 4.25"/>
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M19.5 8.2A8 8 0 1 0 20 14M19.5 4.75V8.2h-3.45"/>
+      </symbol>
+      <symbol id="icon-undo" viewBox="0 0 24 24">
+        <path d="M9 7 4.5 11.5 9 16M5 11.5h8.25a6.25 6.25 0 0 1 6.25 6.25"/>
+      </symbol>
+      <symbol id="icon-export" viewBox="0 0 24 24">
+        <path d="M12 3.75v11.5m0 0 4-4m-4 4-4-4M5 14.5v4.75h14V14.5"/>
+      </symbol>
+      <symbol id="icon-chevron-left" viewBox="0 0 24 24">
+        <path d="m14.5 6.5-5.5 5.5 5.5 5.5"/>
+      </symbol>
+      <symbol id="icon-chevron-right" viewBox="0 0 24 24">
+        <path d="m9.5 6.5 5.5 5.5-5.5 5.5"/>
+      </symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24">
+        <path d="m6.5 6.5 11 11m0-11-11 11"/>
+      </symbol>
+      <symbol id="icon-photo" viewBox="0 0 24 24">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2"/>
+        <circle cx="9" cy="9.5" r="1.5"/>
+        <path d="m5.5 17 4.25-4 3 2.5 2.5-2 3.25 3.5"/>
+      </symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24">
+        <path d="M12 3.5c.5 4.1 2.4 6 6.5 6.5-4.1.5-6 2.4-6.5 6.5-.5-4.1-2.4-6-6.5-6.5 4.1-.5 6-2.4 6.5-6.5ZM18.5 15.5c.2 1.7 1 2.5 2.7 2.7-1.7.2-2.5 1-2.7 2.7-.2-1.7-1-2.5-2.7-2.7 1.7-.2 2.5-1 2.7-2.7Z"/>
+      </symbol>
+    </svg>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg><use href="#icon-mark"></use></svg>
+          </span>
+          <div>
+            <p class="eyebrow">Private workspace</p>
+            <h1>People labeler</h1>
+          </div>
+        </div>
+
+        <div class="topbar-actions" aria-label="Workspace actions">
+          <span class="local-badge"><span aria-hidden="true"></span> Local only</span>
+          <button class="button button-secondary button-icon-label" id="undo-button" type="button">
+            <svg aria-hidden="true"><use href="#icon-undo"></use></svg>
+            <span>Undo</span>
+          </button>
+          <button class="button button-secondary button-icon-label" id="export-button" type="button">
+            <svg aria-hidden="true"><use href="#icon-export"></use></svg>
+            <span>Export preview</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="progress-card" aria-labelledby="progress-heading">
+        <div class="progress-copy">
+          <p class="eyebrow">Review progress</p>
+          <div class="progress-heading-row">
+            <h2 id="progress-heading"><span id="progress-percent">0%</span> complete</h2>
+            <p id="progress-caption">Loading your face groups…</p>
+          </div>
+          <div
+            class="progress-track"
+            role="progressbar"
+            aria-label="Face-group review progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span id="progress-bar"></span>
+          </div>
+        </div>
+        <dl class="stat-grid" aria-label="Labeling totals">
+          <div>
+            <dt>Named</dt>
+            <dd id="stat-labeled">—</dd>
+          </div>
+          <div>
+            <dt>Unknown</dt>
+            <dd id="stat-unknown">—</dd>
+          </div>
+          <div>
+            <dt>Remaining</dt>
+            <dd id="stat-remaining">—</dd>
+          </div>
+          <div>
+            <dt>Faces</dt>
+            <dd id="stat-faces">—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <div class="workspace">
+        <aside class="cluster-sidebar" aria-labelledby="groups-heading">
+          <div class="sidebar-heading">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h2 id="groups-heading">Choose a group</h2>
+            </div>
+            <button class="icon-button" id="refresh-button" type="button" aria-label="Refresh face groups" title="Refresh groups">
+              <svg aria-hidden="true"><use href="#icon-refresh"></use></svg>
+            </button>
+          </div>
+
+          <div class="search-field">
+            <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+            <label class="sr-only" for="cluster-search">Search labeled people</label>
+            <input id="cluster-search" type="search" placeholder="Search people" autocomplete="off" spellcheck="false">
+            <button id="clear-search" type="button" aria-label="Clear search" title="Clear search" hidden>
+              <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+            </button>
+          </div>
+
+          <div class="filter-strip" role="group" aria-label="Filter face groups">
+            <button class="filter-chip is-active" type="button" data-status="unreviewed" aria-pressed="true">
+              To review <span id="filter-count-unreviewed">—</span>
+            </button>
+            <button class="filter-chip" type="button" data-status="labeled" aria-pressed="false">
+              Named <span id="filter-count-labeled">—</span>
+            </button>
+            <button class="filter-chip" type="button" data-status="unknown" aria-pressed="false">
+              Unknown <span id="filter-count-unknown">—</span>
+            </button>
+            <button class="filter-chip" type="button" data-status="ignored" aria-pressed="false">
+              Ignored <span id="filter-count-ignored">—</span>
+            </button>
+            <button class="filter-chip" type="button" data-status="all" aria-pressed="false">
+              All
+            </button>
+          </div>
+
+          <div class="cluster-list-meta">
+            <p id="cluster-list-count" role="status" aria-live="polite">Loading groups…</p>
+            <p class="merge-hint">Check groups to merge</p>
+          </div>
+
+          <div class="cluster-list" id="cluster-list" aria-busy="true"></div>
+
+          <div class="merge-tray" id="merge-tray" hidden>
+            <div>
+              <strong><span id="merge-count">0</span> selected</strong>
+              <button class="text-button" id="clear-cluster-selection" type="button">Clear</button>
+            </div>
+            <button class="button button-primary" id="merge-button" type="button" disabled>Merge groups</button>
+          </div>
+        </aside>
+
+        <main class="detail-panel" id="cluster-detail" tabindex="-1">
+          <section class="detail-empty" id="detail-empty">
+            <div class="empty-illustration" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <p class="eyebrow">Ready when you are</p>
+            <h2>Select a face group</h2>
+            <p>Choose a group on the left, then name the person or set aside faces that do not belong.</p>
+          </section>
+
+          <section id="detail-content" hidden aria-labelledby="active-cluster-heading">
+            <div class="detail-topline">
+              <div class="detail-title">
+                <div class="status-line">
+                  <span class="status-pill" id="active-status">To review</span>
+                  <span id="active-cluster-position">Group —</span>
+                </div>
+                <h2 id="active-cluster-heading">Unidentified person</h2>
+                <p id="active-cluster-summary">Loading faces…</p>
+              </div>
+              <div class="cluster-navigation" aria-label="Move between groups">
+                <button class="icon-button" id="previous-cluster" type="button" aria-label="Previous group" title="Previous group (P)">
+                  <svg aria-hidden="true"><use href="#icon-chevron-left"></use></svg>
+                </button>
+                <button class="icon-button" id="next-cluster" type="button" aria-label="Next group" title="Next group (N)">
+                  <svg aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="label-card">
+              <div class="label-card-copy">
+                <span class="step-badge">Step 2</span>
+                <div>
+                  <h3>Name this person</h3>
+                  <p>Use their unique first-name label. Numbered labels such as Henry3 stay separate.</p>
+                </div>
+              </div>
+              <form class="label-form" id="label-form">
+                <label class="sr-only" for="person-name">Person’s first name</label>
+                <input id="person-name" name="name" type="text" placeholder="e.g. Alex or Henry3" maxlength="120" autocomplete="off">
+                <button class="button button-primary" id="save-label" type="submit">Save first name</button>
+              </form>
+              <div class="cluster-dispositions" id="cluster-dispositions">
+                <button class="button button-secondary" id="unknown-cluster" type="button">Mark as unknown</button>
+                <button class="button button-danger-quiet" id="ignore-cluster" type="button">Ignore group</button>
+                <button class="button button-secondary" id="recover-cluster" type="button" hidden>Return to review</button>
+              </div>
+            </div>
+
+            <section class="suggestions-panel" id="suggestions-panel" aria-labelledby="suggestions-heading" hidden>
+              <div class="suggestions-heading">
+                <div>
+                  <p class="eyebrow">Review hint</p>
+                  <h3 id="suggestions-heading">Possible matches</h3>
+                </div>
+                <p>Open to compare, or add a group to your merge selection. Nothing merges automatically.</p>
+              </div>
+              <div class="batch-label-action" id="batch-label-action" hidden>
+                <div>
+                  <span class="batch-label-mark" aria-hidden="true">
+                    <svg><use href="#icon-spark"></use></svg>
+                  </span>
+                  <p id="batch-label-hint">One person already connects these suggestions.</p>
+                </div>
+                <button class="button batch-label-button" id="batch-label-button" type="button" aria-describedby="batch-label-hint">
+                  Label groups
+                </button>
+              </div>
+              <div class="suggestions-strip" id="suggestions-strip"></div>
+            </section>
+
+            <div class="face-toolbar">
+              <div>
+                <p class="eyebrow">Faces in this group</p>
+                <h3>Check any faces that do not belong</h3>
+              </div>
+              <div class="face-selection-actions">
+                <span id="face-selection-count" aria-live="polite">None selected</span>
+                <button class="text-button" id="clear-face-selection" type="button" hidden>Clear</button>
+                <button class="button button-secondary" id="split-button" type="button" disabled>Split selected</button>
+              </div>
+            </div>
+
+            <div class="face-grid" id="face-grid" aria-busy="false"></div>
+
+            <footer class="shortcut-bar" aria-label="Keyboard shortcuts">
+              <span><kbd>N</kbd> next</span>
+              <span><kbd>P</kbd> previous</span>
+              <span><kbd>L</kbd> name</span>
+              <span><kbd>I</kbd> ignore group</span>
+              <span><kbd>Esc</kbd> clear selection</span>
+            </footer>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog class="modal confirm-modal" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+      <form method="dialog">
+        <span class="modal-mark modal-mark-warning" aria-hidden="true">!</span>
+        <h2 id="confirm-title">Confirm action</h2>
+        <p id="confirm-message"></p>
+        <div class="modal-actions">
+          <button class="button button-secondary" value="cancel" type="submit">Cancel</button>
+          <button class="button button-danger" id="confirm-action" value="confirm" type="submit">Continue</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal photo-modal" id="photo-dialog" aria-labelledby="photo-title" aria-describedby="photo-caption">
+      <div class="photo-modal-header">
+        <div>
+          <p class="eyebrow">Photo context</p>
+          <h2 id="photo-title">Full photo</h2>
+        </div>
+        <button class="icon-button modal-close" id="close-photo" type="button" aria-label="Close full photo">
+          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <div class="photo-stage" id="photo-stage">
+        <div class="image-loading" aria-hidden="true"></div>
+        <img id="full-photo" alt="Full photo containing this face">
+      </div>
+      <p class="modal-caption" id="photo-caption">Use the full scene to confirm who this is. The original filename is never shown.</p>
+    </dialog>
+
+    <dialog class="modal export-modal" id="export-dialog" aria-labelledby="export-title" aria-describedby="export-intro">
+      <div class="modal-header">
+        <span class="modal-mark modal-mark-success" aria-hidden="true">
+          <svg><use href="#icon-spark"></use></svg>
+        </span>
+        <div>
+          <p class="eyebrow">Safe to review</p>
+          <h2 id="export-title">Export preview</h2>
+        </div>
+        <button class="icon-button modal-close" id="close-export" type="button" aria-label="Close export preview">
+          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <p class="export-intro" id="export-intro">This preview contains only people and relationship counts—never filenames or local paths.</p>
+      <div class="export-summary" id="export-summary"></div>
+      <div class="export-people">
+        <h3>Named people</h3>
+        <div id="export-people-list"></div>
+      </div>
+    </dialog>
+
+    <div class="toast-region" id="toast-region"></div>
+    <div class="sr-only" id="polite-status" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="sr-only" id="assertive-status" role="alert" aria-live="assertive" aria-atomic="true"></div>
+  </body>
+</html>

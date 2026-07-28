@@ -1,6 +1,12 @@
+import { PeopleMenu } from "@/components/PeopleMenu";
 import { type GalleryPhoto, PhotoCard } from "@/components/PhotoCard";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
-import { listGalleryPhotos } from "@/lib/gallery-db";
+import {
+  type GalleryPerson,
+  isValidGalleryPersonSlug,
+  listGalleryPeople,
+  listGalleryPhotos,
+} from "@/lib/gallery-db";
 import { hasGallerySession } from "@/lib/gallery-session";
 import {
   ArrowUp,
@@ -16,6 +22,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Photo, RowsPhotoAlbum } from "react-photo-album";
+import useSWR from "swr";
 import useSWRInfinite from "swr/infinite";
 
 const geist = Geist({ subsets: ["latin"] });
@@ -32,8 +39,15 @@ interface PhotosPage {
   mediaExpiresAt: number;
 }
 
+interface PeoplePage {
+  people: GalleryPerson[];
+  mediaExpiresAt: number;
+}
+
 interface GalleryPageProps {
   initialPage: PhotosPage | null;
+  initialPeoplePage: PeoplePage | null;
+  initialPerson: string | null;
 }
 
 interface AlbumLayoutPhoto extends Photo {
@@ -44,6 +58,7 @@ interface AlbumLayoutPhoto extends Photo {
 export const getServerSideProps: GetServerSideProps<GalleryPageProps> = async ({
   req,
   res,
+  query,
 }) => {
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
 
@@ -66,19 +81,70 @@ export const getServerSideProps: GetServerSideProps<GalleryPageProps> = async ({
   }
 
   try {
-    const initialPage = await listGalleryPhotos({
-      limit: PAGE_SIZE,
-      sort: "album",
-    });
+    const requestedPerson =
+      typeof query.person === "string" ? query.person : null;
+    if (
+      query.person !== undefined &&
+      (!requestedPerson || !isValidGalleryPersonSlug(requestedPerson))
+    ) {
+      return {
+        redirect: {
+          destination: "/gallery",
+          permanent: false,
+        },
+      };
+    }
+    const [photoResult, peopleResult] = await Promise.allSettled([
+      listGalleryPhotos({
+        limit: PAGE_SIZE,
+        sort: "album",
+        person: requestedPerson ?? undefined,
+      }),
+      listGalleryPeople(),
+    ]);
+    if (photoResult.status === "rejected") throw photoResult.reason;
+
+    const initialPage = photoResult.value;
+    const initialPeoplePage =
+      peopleResult.status === "fulfilled" ? peopleResult.value : null;
+    if (peopleResult.status === "rejected") {
+      console.error(
+        "Unable to preload the gallery guest list",
+        peopleResult.reason,
+      );
+    }
+
+    if (
+      requestedPerson &&
+      initialPeoplePage &&
+      !initialPeoplePage.people.some(
+        (person) => person.slug === requestedPerson,
+      )
+    ) {
+      return {
+        redirect: {
+          destination: "/gallery",
+          permanent: false,
+        },
+      };
+    }
 
     return {
       props: {
         initialPage,
+        initialPeoplePage,
+        initialPerson: requestedPerson,
       },
     };
   } catch (error) {
     console.error("Unable to preload gallery photos", error);
-    return { props: { initialPage: null } };
+    return {
+      props: {
+        initialPage: null,
+        initialPeoplePage: null,
+        initialPerson: null,
+      },
+    };
   }
 };
 
@@ -122,6 +188,19 @@ async function fetchPhotos(url: string): Promise<PhotosPage> {
   return response.json() as Promise<PhotosPage>;
 }
 
+async function fetchPeople(url: string): Promise<PeoplePage> {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "The guest list couldn’t be loaded.");
+  }
+
+  return response.json() as Promise<PeoplePage>;
+}
+
 function SkeletonGallery() {
   const heights = [
     1.34, 0.76, 1.18, 1.5, 0.86, 1.26, 0.72, 1.42, 1.05, 1.32, 0.8, 1.2,
@@ -145,7 +224,11 @@ function SkeletonGallery() {
   );
 }
 
-export default function GalleryPage({ initialPage }: GalleryPageProps) {
+export default function GalleryPage({
+  initialPage,
+  initialPeoplePage,
+  initialPerson,
+}: GalleryPageProps) {
   const router = useRouter();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [sort, setSort] = useState<SortOrder>("album");
@@ -157,6 +240,21 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     promise: Promise<unknown>;
   } | null>(null);
   const mediaErrorRefreshKeyRef = useRef<string | null>(null);
+  const routedPerson =
+    typeof router.query.person === "string" ? router.query.person : null;
+  const personSlug = router.isReady ? routedPerson : initialPerson;
+
+  const {
+    data: peoplePage,
+    error: peopleError,
+    mutate: mutatePeople,
+  } = useSWR<PeoplePage, ApiError>("/api/people", fetchPeople, {
+    fallbackData: initialPeoplePage ?? undefined,
+    revalidateOnMount: !initialPeoplePage,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+  });
+  const people = peoplePage?.people ?? initialPeoplePage?.people ?? [];
 
   const getKey = (pageIndex: number, previousPage: PhotosPage | null) => {
     if (previousPage && !previousPage.nextCursor) return null;
@@ -169,18 +267,28 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     if (pageIndex > 0 && previousPage?.nextCursor) {
       params.set("cursor", previousPage.nextCursor);
     }
+    if (personSlug) params.set("person", personSlug);
 
     return `/api/photos?${params.toString()}`;
   };
 
-  const { data, error, isValidating, mutate, setSize } = useSWRInfinite<
-    PhotosPage,
-    ApiError
-  >(getKey, fetchPhotos, {
+  const {
+    data,
+    error,
+    isValidating,
+    mutate: mutatePhotos,
+    setSize,
+  } = useSWRInfinite<PhotosPage, ApiError>(getKey, fetchPhotos, {
     fallbackData:
-      sort === "album" && initialPage ? [initialPage] : undefined,
+      sort === "album" && personSlug === initialPerson && initialPage
+        ? [initialPage]
+        : undefined,
     revalidateFirstPage: false,
-    revalidateOnMount: !(sort === "album" && initialPage),
+    revalidateOnMount: !(
+      sort === "album" &&
+      personSlug === initialPerson &&
+      initialPage
+    ),
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
   });
@@ -203,25 +311,39 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
           : Math.min(earliest, page.mediaExpiresAt);
     }
 
-    return earliest;
-  }, [data]);
-  const mediaGenerationKey = useMemo(
-    () => (data ?? []).map((page) => page.mediaExpiresAt).join(":"),
-    [data],
-  );
-  const mediaRefreshKey = `${sort}:${mediaGenerationKey}`;
+    if (
+      Number.isSafeInteger(peoplePage?.mediaExpiresAt) &&
+      Number(peoplePage?.mediaExpiresAt) > 0
+    ) {
+      earliest =
+        earliest === null
+          ? Number(peoplePage?.mediaExpiresAt)
+          : Math.min(earliest, Number(peoplePage?.mediaExpiresAt));
+    }
 
-  const revalidateLoadedPages = useCallback((): Promise<unknown> => {
-    if (!hasLoadedPages) return Promise.resolve();
+    return earliest;
+  }, [data, peoplePage?.mediaExpiresAt]);
+  const mediaGenerationKey = useMemo(
+    () =>
+      [
+        peoplePage?.mediaExpiresAt ?? "",
+        ...(data ?? []).map((page) => page.mediaExpiresAt),
+      ].join(":"),
+    [data, peoplePage?.mediaExpiresAt],
+  );
+  const mediaRefreshKey = `${sort}:${personSlug ?? "everyone"}:${mediaGenerationKey}`;
+
+  const revalidateMedia = useCallback((): Promise<unknown> => {
+    if (!hasLoadedPages && !peoplePage) return Promise.resolve();
     if (mediaRefreshPromiseRef.current?.key === mediaRefreshKey) {
       return mediaRefreshPromiseRef.current.promise;
     }
 
     let refreshPromise: Promise<unknown>;
-    // SWR Infinite revalidates every loaded page when its mutator is called
-    // without replacement data.
-    refreshPromise = mutate()
-      .catch(() => undefined)
+    refreshPromise = Promise.all([
+      mutatePeople().catch(() => undefined),
+      hasLoadedPages ? mutatePhotos().catch(() => undefined) : undefined,
+    ])
       .finally(() => {
         if (mediaRefreshPromiseRef.current?.promise === refreshPromise) {
           mediaRefreshPromiseRef.current = null;
@@ -233,7 +355,13 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     };
 
     return refreshPromise;
-  }, [hasLoadedPages, mediaRefreshKey, mutate]);
+  }, [
+    hasLoadedPages,
+    mediaRefreshKey,
+    mutatePeople,
+    mutatePhotos,
+    peoplePage,
+  ]);
 
   useEffect(() => {
     if (earliestMediaExpiry === null) return;
@@ -246,7 +374,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
       const delay = refreshAt - Date.now();
 
       if (delay <= 0) {
-        void revalidateLoadedPages();
+        void revalidateMedia();
         return;
       }
 
@@ -261,7 +389,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     return () => {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     };
-  }, [earliestMediaExpiry, revalidateLoadedPages]);
+  }, [earliestMediaExpiry, revalidateMedia]);
 
   useEffect(() => {
     if (earliestMediaExpiry === null) return;
@@ -271,7 +399,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
 
       const expiresIn = earliestMediaExpiry * 1_000 - Date.now();
       if (expiresIn <= MEDIA_REFRESH_LEAD_MS) {
-        void revalidateLoadedPages();
+        void revalidateMedia();
       }
     };
 
@@ -288,7 +416,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
       );
       window.removeEventListener("focus", refreshIfMediaIsNearExpiry);
     };
-  }, [earliestMediaExpiry, revalidateLoadedPages]);
+  }, [earliestMediaExpiry, revalidateMedia]);
 
   const refreshAfterMediaError = useCallback(() => {
     if (
@@ -299,8 +427,8 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     }
 
     mediaErrorRefreshKeyRef.current = mediaRefreshKey;
-    void revalidateLoadedPages();
-  }, [mediaGenerationKey, mediaRefreshKey, revalidateLoadedPages]);
+    void revalidateMedia();
+  }, [mediaGenerationKey, mediaRefreshKey, revalidateMedia]);
 
   const layoutPages = useMemo(() => {
     const seen = new Set<string>();
@@ -344,10 +472,13 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
   const loadingMore = Boolean(data?.length && isValidating);
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
+    if (
+      (error instanceof ApiError && error.status === 401) ||
+      (peopleError instanceof ApiError && peopleError.status === 401)
+    ) {
       void router.replace("/");
     }
-  }, [error, router]);
+  }, [error, peopleError, router]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -382,15 +513,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     }
   }, [hasMore, isValidating, photos, selectedId, setSize]);
 
-  const changeSort = (nextSort: SortOrder) => {
-    if (nextSort === sort) return;
-
-    const update = () => {
-      setSelectedId(null);
-      void setSize(1);
-      setSort(nextSort);
-    };
-
+  const withGalleryTransition = (update: () => void) => {
     const viewTransitionDocument = document as Document & {
       startViewTransition?: (callback: () => void) => void;
     };
@@ -403,6 +526,33 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     } else {
       update();
     }
+  };
+
+  const changeSort = (nextSort: SortOrder) => {
+    if (nextSort === sort) return;
+
+    withGalleryTransition(() => {
+      setSelectedId(null);
+      void setSize(1);
+      setSort(nextSort);
+    });
+  };
+
+  const changePerson = (nextPerson: string | null) => {
+    if (nextPerson === personSlug) return;
+
+    withGalleryTransition(() => {
+      setSelectedId(null);
+      void setSize(1);
+      void router.replace(
+        {
+          pathname: "/gallery",
+          query: nextPerson ? { person: nextPerson } : {},
+        },
+        undefined,
+        { shallow: true, scroll: false },
+      );
+    });
   };
 
   const logout = async () => {
@@ -420,7 +570,10 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
     }
   };
 
-  if (error instanceof ApiError && error.status === 401) {
+  if (
+    (error instanceof ApiError && error.status === 401) ||
+    (peopleError instanceof ApiError && peopleError.status === 401)
+  ) {
     return (
       <main className={`gallery-route-loader ${geist.className}`}>
         <LoaderCircle aria-hidden="true" />
@@ -441,7 +594,7 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
       </Head>
 
       <main className={`gallery-page ${geist.className}`}>
-        <a className="skip-link" href="#photographs">
+        <a className="skip-link" href="#photo-grid">
           Skip to photographs
         </a>
 
@@ -458,6 +611,14 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
             </a>
 
             <div className="gallery-actions">
+              {people.length > 0 && (
+                <PeopleMenu
+                  people={people}
+                  selectedSlug={personSlug}
+                  onSelect={changePerson}
+                />
+              )}
+
               <label className="gallery-sort">
                 <span className="sr-only">Sort photographs</span>
                 <select
@@ -504,39 +665,62 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
           className="gallery-content"
           aria-busy={initialLoading || loadingMore}
         >
-          {initialLoading ? (
-            <SkeletonGallery />
-          ) : initialError ? (
-            <div className="gallery-state">
-              <div className="gallery-state__icon">
-                <RefreshCw aria-hidden="true" />
+          <div
+            id="photo-grid"
+            className="gallery-photo-region"
+            tabIndex={-1}
+            role="region"
+            aria-label="Photographs"
+          >
+            {initialLoading ? (
+              <SkeletonGallery />
+            ) : initialError ? (
+              <div className="gallery-state">
+                <div className="gallery-state__icon">
+                  <RefreshCw aria-hidden="true" />
+                </div>
+                <h2>The photographs are taking a moment.</h2>
+                <p>
+                  {initialError.message ||
+                    "Please check your connection and try once more."}
+                </p>
+                <button type="button" onClick={() => void mutatePhotos()}>
+                  Try again
+                </button>
               </div>
-              <h2>The photographs are taking a moment.</h2>
-              <p>
-                {initialError.message ||
-                  "Please check your connection and try once more."}
-              </p>
-              <button type="button" onClick={() => void mutate()}>
-                Try again
-              </button>
-            </div>
-          ) : photos.length === 0 ? (
-            <div className="gallery-state">
-              <div className="gallery-state__icon">
-                <Images aria-hidden="true" />
+            ) : photos.length === 0 ? (
+              <div className="gallery-state">
+                <div className="gallery-state__icon">
+                  <Images aria-hidden="true" />
+                </div>
+                {personSlug ? (
+                  <>
+                    <h2>No finished photographs matched this person.</h2>
+                    <p>
+                      Try another face, or return to everyone in the gallery.
+                    </p>
+                    <button type="button" onClick={() => changePerson(null)}>
+                      Show everyone
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2>The gallery is almost ready.</h2>
+                    <p>
+                      Photographs will appear here as soon as the collection is
+                      published.
+                    </p>
+                  </>
+                )}
               </div>
-              <h2>The gallery is almost ready.</h2>
-              <p>
-                Photographs will appear here as soon as the collection is
-                published.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="gallery-albums">
+            ) : (
+              <>
+                <div className="gallery-albums">
                 {layoutPages.map((page, pageIndex) => (
                   <RowsPhotoAlbum<AlbumLayoutPhoto>
-                    key={`${sort}-${pageIndex}-${page.photos[0]?.key ?? "empty"}`}
+                    key={`${personSlug ?? "everyone"}-${sort}-${pageIndex}-${
+                      page.photos[0]?.key ?? "empty"
+                    }`}
                     photos={page.photos}
                     defaultContainerWidth={1280}
                     breakpoints={[360, 600, 900, 1280, 1640]}
@@ -578,7 +762,10 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
                       The next photographs couldn&apos;t be loaded. Everything
                       already here is still available.
                     </span>
-                    <button type="button" onClick={() => void mutate()}>
+                    <button
+                      type="button"
+                      onClick={() => void mutatePhotos()}
+                    >
                       Try again
                     </button>
                   </div>
@@ -606,9 +793,10 @@ export default function GalleryPage({ initialPage }: GalleryPageProps) {
                     <span />
                   </div>
                 )}
-              </div>
-            </>
-          )}
+                </div>
+              </>
+            )}
+          </div>
         </section>
 
         {showTopButton && (

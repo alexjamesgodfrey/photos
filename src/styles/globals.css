@@ -479,12 +479,227 @@
   pointer-events: none;
 }
 
+.people-menu {
+  position: relative;
+}
+
+.people-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 2.75rem;
+  max-width: 13.5rem;
+  border: 1px solid var(--wedding-line);
+  border-radius: 999px;
+  padding: 0 0.85rem 0 0.3rem;
+  background: rgba(255, 255, 255, 0.47);
+  color: #4e4841;
+  font-size: 0.75rem;
+  font-weight: 620;
+  cursor: pointer;
+  transition:
+    border-color 170ms ease,
+    background-color 170ms ease;
+}
+
+.people-menu__trigger:hover {
+  border-color: rgba(100, 76, 51, 0.3);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.people-menu__trigger:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: 4px;
+}
+
+.people-menu__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-menu__chevron {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+  transition: transform 180ms ease;
+}
+
+.people-menu__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.people-menu__avatar {
+  position: relative;
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 34% 26%,
+      rgba(255, 255, 255, 0.5),
+      transparent 40%
+    ),
+    #d9cbb9;
+  color: #6b5847;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.85rem;
+}
+
+.people-menu__avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.people-menu__avatar.is-loaded img {
+  opacity: 1;
+}
+
+.people-menu__avatar--all {
+  background: var(--wedding-green);
+  color: #fffaf2;
+}
+
+.people-menu__avatar--all svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.people-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  z-index: 40;
+  width: min(17.5rem, calc(100vw - 1.5rem));
+  overflow: hidden;
+  border: 1px solid rgba(75, 61, 46, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 252, 247, 0.97);
+  box-shadow: 0 18px 50px rgba(43, 35, 26, 0.18);
+  backdrop-filter: blur(14px);
+  animation: people-menu-pop 170ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.people-menu__search {
+  display: flex;
+  height: 2.9rem;
+  align-items: center;
+  gap: 0.55rem;
+  border-bottom: 1px solid var(--wedding-line);
+  padding: 0 0.95rem;
+  color: var(--wedding-muted-strong);
+}
+
+.people-menu__search svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.people-menu__search input {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--wedding-ink);
+  font-size: 0.8rem;
+}
+
+.people-menu__search input::placeholder {
+  color: #8b8379;
+  opacity: 1;
+}
+
+.people-menu__search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.people-menu__list {
+  max-height: min(21rem, 55vh);
+  overflow-y: auto;
+  padding: 0.45rem;
+  overscroll-behavior: contain;
+}
+
+.people-menu__option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.6rem;
+  border: 0;
+  border-radius: 0.7rem;
+  padding: 0.3rem 0.55rem 0.3rem 0.3rem;
+  background: transparent;
+  color: var(--wedding-ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.people-menu__option:hover {
+  background: rgba(52, 67, 58, 0.07);
+}
+
+.people-menu__option:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: -2px;
+}
+
+.people-menu__option.is-selected {
+  background: rgba(52, 67, 58, 0.1);
+}
+
+.people-menu__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-menu__count {
+  flex: 0 0 auto;
+  color: var(--wedding-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.people-menu__empty {
+  margin: 0;
+  padding: 0.85rem 0.7rem 1rem;
+  color: var(--wedding-muted);
+  font-size: 0.75rem;
+}
+
 .gallery-content {
   width: min(1640px, calc(100% - 3rem));
   min-height: 60vh;
   margin: 0 auto;
   padding: clamp(1rem, 2.5vw, 2rem) 0 5rem;
   scroll-margin-top: 5.25rem;
+}
+
+.gallery-photo-region {
+  scroll-margin-top: 5.25rem;
+}
+
+.gallery-photo-region:focus {
+  outline: none;
 }
 
 .gallery-skeleton-grid {
@@ -986,9 +1201,47 @@
     width: 1rem;
   }
 
+  .gallery-actions {
+    gap: 0.4rem;
+  }
+
   .gallery-sort {
-    min-width: 9.75rem;
+    min-width: 0;
+    max-width: 8.5rem;
     height: 2.6rem;
+  }
+
+  .gallery-sort select {
+    overflow: hidden;
+    padding: 0 1.9rem 0 0.85rem;
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gallery-sort__chevron {
+    right: 0.6rem;
+  }
+
+  .people-menu__trigger {
+    height: 2.6rem;
+    max-width: 7.75rem;
+    gap: 0.45rem;
+    padding: 0 0.7rem 0 0.25rem;
+    font-size: 0.72rem;
+  }
+
+  .people-menu__avatar {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .people-menu__panel {
+    position: fixed;
+    top: 4.2rem;
+    right: 0.625rem;
+    left: 0.625rem;
+    width: auto;
   }
 
   .gallery-logout {
@@ -1096,6 +1349,17 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes people-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

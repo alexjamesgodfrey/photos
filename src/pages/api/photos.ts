@@ -1,5 +1,6 @@
 import {
   InvalidGalleryCursorError,
+  isValidGalleryPersonSlug,
   listGalleryPhotos,
   type GallerySort,
 } from "@/lib/gallery-db"
@@ -59,8 +60,16 @@ export default async function handler(
       ? requestedSort
       : "album"
 
+  if (Array.isArray(request.query.person)) {
+    return response.status(400).json({ error: "Invalid person" })
+  }
+  const person = singleQueryValue(request.query.person)
+  if (person !== undefined && !isValidGalleryPersonSlug(person)) {
+    return response.status(400).json({ error: "Invalid person" })
+  }
+
   try {
-    const result = await listGalleryPhotos({ limit, sort, cursor })
+    const result = await listGalleryPhotos({ limit, sort, cursor, person })
     return response.status(200).json(result)
   } catch (error) {
     if (error instanceof InvalidGalleryCursorError) {

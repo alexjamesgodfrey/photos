@@ -5,6 +5,7 @@ import { createHash } from "node:crypto"
 import test from "node:test"
 
 import {
+  GALLERY_COOKIE_NAME,
   createGallerySessionCookie,
   createGallerySessionToken,
   isGalleryAccessCodeValid,
@@ -16,9 +17,13 @@ import {
   encodeGalleryCursor,
   galleryMediaExpiresAt,
   InvalidGalleryCursorError,
+  isValidGalleryPersonSlug,
+  listGalleryPeople,
   listGalleryPhotos,
   type GalleryCursor,
 } from "../src/lib/gallery-db"
+import peopleHandler from "../src/pages/api/people"
+import photosHandler from "../src/pages/api/photos"
 import {
   getValidSignedUrlExpiration,
   hasValidSignedUrl,
@@ -153,6 +158,34 @@ test("opaque cursors round-trip every stable keyset tuple", () => {
     albumPosition: 990,
     id: "photo_0990",
   })
+
+  const personCursor = encodeGalleryCursor({
+    sort: "album",
+    albumPosition: 73,
+    id: "photo_0073",
+    person: "person-alex",
+  })
+  assert.deepEqual(
+    decodeGalleryCursor(personCursor, "album", "person-alex"),
+    {
+      sort: "album",
+      albumPosition: 73,
+      id: "photo_0073",
+      person: "person-alex",
+    }
+  )
+  assert.throws(
+    () => decodeGalleryCursor(personCursor, "album"),
+    InvalidGalleryCursorError
+  )
+  assert.throws(
+    () => decodeGalleryCursor(personCursor, "album", "person-sierra"),
+    InvalidGalleryCursorError
+  )
+  assert.throws(
+    () => decodeGalleryCursor(albumCursor, "album", "person-alex"),
+    InvalidGalleryCursorError
+  )
 })
 
 test("cursors reject malformed, non-canonical, and sort-mismatched input", () => {
@@ -215,6 +248,42 @@ test("cursors reject malformed, non-canonical, and sort-mismatched input", () =>
       } as GalleryCursor),
     InvalidGalleryCursorError
   )
+  assert.throws(
+    () =>
+      encodeGalleryCursor({
+        sort: "album",
+        albumPosition: 1,
+        id: "photo_0001",
+        person: "Alex Godfrey",
+      }),
+    InvalidGalleryCursorError
+  )
+})
+
+test("person slugs accept only canonical bounded URL-safe values", () => {
+  for (const value of [
+    "person-alex",
+    "alex",
+    "henry-5",
+    "person-1786b1749dfe",
+  ]) {
+    assert.equal(isValidGalleryPersonSlug(value), true)
+  }
+
+  for (const value of [
+    "",
+    "Alex",
+    "alex godfrey",
+    "-alex",
+    "alex-",
+    "alex--sierra",
+    "alex_1",
+    "a".repeat(129),
+    null,
+    42,
+  ]) {
+    assert.equal(isValidGalleryPersonSlug(value), false)
+  }
 })
 
 const PHOTO_FIELDS = [
@@ -402,7 +471,7 @@ test("photo listing uses album totals, limit+1, fresh timeouts, and keyset queri
   assert.deepEqual(photoCalls[0].params, ["wedding", "3"])
   assert.match(
     photoCalls[0].query,
-    /ORDER BY album_position ASC, id ASC/
+    /ORDER BY ph\.album_position ASC, ph\.id ASC/
   )
   assert.deepEqual(photoCalls[1].params, [
     "wedding",
@@ -412,7 +481,7 @@ test("photo listing uses album totals, limit+1, fresh timeouts, and keyset queri
   ])
   assert.match(
     photoCalls[1].query,
-    /AND \(album_position, id\) > \(\$2, \$3\)/
+    /AND \(ph\.album_position, ph\.id\) > \(\$2, \$3\)/
   )
   assert.deepEqual(photoCalls[2].params, [
     "wedding",
@@ -421,7 +490,7 @@ test("photo listing uses album totals, limit+1, fresh timeouts, and keyset queri
     "photo_0010",
     "3",
   ])
-  assert.match(photoCalls[2].query, /captured_at < \$2::timestamptz/)
+  assert.match(photoCalls[2].query, /ph\.captured_at < \$2::timestamptz/)
   assert.match(photoCalls[2].query, /NULLS LAST/)
   assert.deepEqual(photoCalls[3].params, [
     "wedding",
@@ -430,7 +499,7 @@ test("photo listing uses album totals, limit+1, fresh timeouts, and keyset queri
     "photo_0010",
     "3",
   ])
-  assert.match(photoCalls[3].query, /captured_at > \$2::timestamptz/)
+  assert.match(photoCalls[3].query, /ph\.captured_at > \$2::timestamptz/)
   assert.match(photoCalls[3].query, /NULLS LAST/)
   assert.deepEqual(photoCalls[4].params, [
     "wedding",
@@ -440,7 +509,7 @@ test("photo listing uses album totals, limit+1, fresh timeouts, and keyset queri
   ])
   assert.match(
     photoCalls[4].query,
-    /AND captured_at IS NULL[\s\S]*AND \(album_position, id\) >/
+    /AND ph\.captured_at IS NULL[\s\S]*AND \(ph\.album_position, ph\.id\) >/
   )
 
   const requestSignals = calls.map((call) => call.signal)
@@ -456,5 +525,404 @@ test("photo listing uses album totals, limit+1, fresh timeouts, and keyset queri
       requestSignals.filter((candidate) => candidate === signal).length,
       2
     )
+  }
+})
+
+test("people listing returns published counts and signed optional avatars", async (t) => {
+  process.env.DATABASE_URL =
+    "postgresql://gallery:password@mock.pg.psdb.cloud/postgres"
+  process.env.GALLERY_ALBUM_ID = "wedding"
+  process.env.MEDIA_BASE_URL = "https://media.example.test"
+  process.env.MEDIA_SIGNING_SECRET = MEDIA_SECRET
+  process.env.MEDIA_URL_TTL_SECONDS = "21600"
+
+  const fields = [
+    "id",
+    "slug",
+    "display_name",
+    "avatar_key",
+    "avatar_width",
+    "avatar_height",
+    "photo_count",
+  ]
+  const responses = [
+    [
+      [
+        "person_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "person-alex",
+        "Alex",
+        "wedding/people/person_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/avatar-bbbbbbbbbbbbbbbbbbbb.webp",
+        "320",
+        "320",
+        "382",
+      ],
+      [
+        "person_bobbi",
+        "person-bobbi",
+        "Bobbi",
+        null,
+        null,
+        null,
+        "32",
+      ],
+    ],
+    [
+      [
+        "person_invalid",
+        "person-invalid",
+        "Invalid",
+        null,
+        "320",
+        null,
+        "1",
+      ],
+    ],
+  ]
+  const calls: Array<{ query: string; params: unknown[] }> = []
+
+  neonConfig.fetchFunction = async (
+    _input: string | URL | Request,
+    init?: RequestInit
+  ) => {
+    const body = JSON.parse(String(init?.body)) as {
+      query: string
+      params: unknown[]
+    }
+    calls.push(body)
+    return new Response(
+      JSON.stringify(mockNeonResult(fields, responses.shift() ?? [])),
+      { headers: { "Content-Type": "application/json" } }
+    )
+  }
+  t.after(() => {
+    neonConfig.fetchFunction = undefined
+  })
+
+  const result = await listGalleryPeople()
+  assert.equal(result.people.length, 2)
+  assert.equal(Number.isSafeInteger(result.mediaExpiresAt), true)
+  assert.deepEqual(result.people[1], {
+    id: "person_bobbi",
+    slug: "person-bobbi",
+    displayName: "Bobbi",
+    photoCount: 32,
+    avatarUrl: null,
+    avatarWidth: null,
+    avatarHeight: null,
+  })
+
+  const alex = result.people[0]
+  assert.equal(alex.photoCount, 382)
+  assert.equal(alex.avatarWidth, 320)
+  assert.equal(alex.avatarHeight, 320)
+  assert.ok(alex.avatarUrl)
+  const avatarUrl = new URL(alex.avatarUrl!)
+  assert.equal(
+    avatarUrl.pathname,
+    "/wedding/people/person_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/avatar-bbbbbbbbbbbbbbbbbbbb.webp"
+  )
+  assert.equal(
+    Number(avatarUrl.searchParams.get("expires")),
+    result.mediaExpiresAt
+  )
+  assert.equal(await hasValidSignedUrl(avatarUrl, MEDIA_SECRET), true)
+
+  assert.deepEqual(calls[0].params, ["wedding"])
+  assert.match(
+    calls[0].query,
+    /JOIN wedding_photos\.photo_people pp ON pp\.person_id = pe\.id/
+  )
+  assert.match(calls[0].query, /ph\.published = true/)
+  assert.match(
+    calls[0].query,
+    /ORDER BY lower\(pe\.display_name\) ASC/
+  )
+  await assert.rejects(
+    () => listGalleryPeople(),
+    /invalid person avatar metadata/
+  )
+})
+
+test("person-filtered listings use accurate counts and filter-bound keyset cursors", async (t) => {
+  process.env.DATABASE_URL =
+    "postgresql://gallery:password@mock.pg.psdb.cloud/postgres"
+  process.env.GALLERY_ALBUM_ID = "wedding"
+  process.env.MEDIA_BASE_URL = "https://media.example.test"
+  process.env.MEDIA_SIGNING_SECRET = MEDIA_SECRET
+  process.env.MEDIA_URL_TTL_SECONDS = "21600"
+
+  const photoResponses = [
+    [
+      mockPhotoRow("photo_0001", 1),
+      mockPhotoRow("photo_0002", 2),
+      mockPhotoRow("photo_0003", 3),
+    ],
+    [mockPhotoRow("photo_0003", 3)],
+    [],
+    [],
+  ]
+  const calls: Array<{ query: string; params: unknown[] }> = []
+
+  neonConfig.fetchFunction = async (
+    _input: string | URL | Request,
+    init?: RequestInit
+  ) => {
+    const body = JSON.parse(String(init?.body)) as {
+      query: string
+      params: unknown[]
+    }
+    calls.push(body)
+    const result = body.query.includes("count(*) AS photo_count")
+      ? mockNeonResult(["photo_count"], [["3"]])
+      : mockNeonResult(PHOTO_FIELDS, photoResponses.shift() ?? [])
+    return new Response(JSON.stringify(result), {
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  t.after(() => {
+    neonConfig.fetchFunction = undefined
+  })
+
+  const firstPage = await listGalleryPhotos({
+    limit: 2,
+    sort: "album",
+    person: "person-alex",
+  })
+  assert.equal(firstPage.total, 3)
+  assert.equal(firstPage.photos.length, 2)
+  assert.ok(firstPage.nextCursor)
+  assert.deepEqual(
+    decodeGalleryCursor(
+      firstPage.nextCursor!,
+      "album",
+      "person-alex"
+    ),
+    {
+      sort: "album",
+      albumPosition: 2,
+      id: "photo_0002",
+      person: "person-alex",
+    }
+  )
+
+  const secondPage = await listGalleryPhotos({
+    limit: 2,
+    sort: "album",
+    person: "person-alex",
+    cursor: firstPage.nextCursor!,
+  })
+  assert.equal(secondPage.total, 3)
+  assert.equal(secondPage.photos.length, 1)
+  assert.equal(secondPage.nextCursor, null)
+
+  const timestamp = "2026-07-27T01:23:45.123456Z"
+  for (const sort of ["newest", "oldest"] as const) {
+    await listGalleryPhotos({
+      limit: 2,
+      sort,
+      person: "person-alex",
+      cursor: encodeGalleryCursor({
+        sort,
+        person: "person-alex",
+        capturedAt: timestamp,
+        albumPosition: 10,
+        id: "photo_0010",
+      }),
+    })
+  }
+
+  const callCountBeforeRejectedInputs = calls.length
+  await assert.rejects(
+    () =>
+      listGalleryPhotos({
+        limit: 2,
+        sort: "album",
+        person: "person-sierra",
+        cursor: firstPage.nextCursor!,
+      }),
+    InvalidGalleryCursorError
+  )
+  await assert.rejects(
+    () =>
+      listGalleryPhotos({
+        limit: 2,
+        sort: "album",
+        person: "Alex Godfrey",
+      }),
+    /Invalid gallery person slug/
+  )
+  assert.equal(calls.length, callCountBeforeRejectedInputs)
+
+  const countCalls = calls.filter((call) =>
+    call.query.includes("count(*) AS photo_count")
+  )
+  const photoCalls = calls.filter((call) =>
+    call.query.includes("original_filename")
+  )
+  assert.equal(countCalls.length, 4)
+  assert.equal(photoCalls.length, 4)
+  assert.deepEqual(countCalls[0].params, ["wedding", "person-alex"])
+  assert.match(countCalls[0].query, /AND pe\.slug = \$2/)
+  assert.deepEqual(photoCalls[0].params, [
+    "wedding",
+    "person-alex",
+    "3",
+  ])
+  assert.deepEqual(photoCalls[1].params, [
+    "wedding",
+    "person-alex",
+    "2",
+    "photo_0002",
+    "3",
+  ])
+  assert.match(
+    photoCalls[1].query,
+    /AND \(ph\.album_position, ph\.id\) > \(\$3, \$4\)/
+  )
+  assert.deepEqual(photoCalls[2].params, [
+    "wedding",
+    "person-alex",
+    timestamp,
+    "10",
+    "photo_0010",
+    "3",
+  ])
+  assert.match(photoCalls[2].query, /ph\.captured_at < \$3::timestamptz/)
+  assert.deepEqual(photoCalls[3].params, [
+    "wedding",
+    "person-alex",
+    timestamp,
+    "10",
+    "photo_0010",
+    "3",
+  ])
+  assert.match(photoCalls[3].query, /ph\.captured_at > \$3::timestamptz/)
+})
+
+interface ApiResponseState {
+  statusCode: number
+  body: unknown
+  headers: Map<string, string | string[] | number>
+}
+
+function createApiResponse() {
+  const state: ApiResponseState = {
+    statusCode: 200,
+    body: undefined,
+    headers: new Map(),
+  }
+  const response = {
+    setHeader(name: string, value: string | string[] | number) {
+      state.headers.set(name.toLowerCase(), value)
+      return response
+    },
+    status(statusCode: number) {
+      state.statusCode = statusCode
+      return response
+    },
+    json(body: unknown) {
+      state.body = body
+      return response
+    },
+  }
+  return {
+    state,
+    response: response as unknown as Parameters<typeof photosHandler>[1],
+  }
+}
+
+test("people API requires authentication and photos API rejects invalid person inputs", async (t) => {
+  process.env.GALLERY_SESSION_SECRET = SESSION_SECRET
+  process.env.DATABASE_URL =
+    "postgresql://gallery:password@mock.pg.psdb.cloud/postgres"
+  process.env.GALLERY_ALBUM_ID = "wedding"
+  process.env.MEDIA_BASE_URL = "https://media.example.test"
+  process.env.MEDIA_SIGNING_SECRET = MEDIA_SECRET
+  neonConfig.fetchFunction = async () =>
+    new Response(
+      JSON.stringify(
+        mockNeonResult(
+          [
+            "id",
+            "slug",
+            "display_name",
+            "avatar_key",
+            "avatar_width",
+            "avatar_height",
+            "photo_count",
+          ],
+          []
+        )
+      ),
+      { headers: { "Content-Type": "application/json" } }
+    )
+  t.after(() => {
+    neonConfig.fetchFunction = undefined
+  })
+
+  const unauthorized = createApiResponse()
+  await peopleHandler(
+    {
+      method: "GET",
+      headers: {},
+      query: {},
+    } as unknown as Parameters<typeof peopleHandler>[0],
+    unauthorized.response
+  )
+  assert.equal(unauthorized.state.statusCode, 401)
+  assert.deepEqual(unauthorized.state.body, {
+    error: "Authentication required",
+  })
+  assert.equal(
+    unauthorized.state.headers.get("cache-control"),
+    "private, no-store, max-age=0"
+  )
+
+  const wrongMethod = createApiResponse()
+  await peopleHandler(
+    {
+      method: "POST",
+      headers: {},
+      query: {},
+    } as unknown as Parameters<typeof peopleHandler>[0],
+    wrongMethod.response
+  )
+  assert.equal(wrongMethod.state.statusCode, 405)
+  assert.equal(wrongMethod.state.headers.get("allow"), "GET")
+
+  const cookie = `${GALLERY_COOKIE_NAME}=${createGallerySessionToken()}`
+  const authorized = createApiResponse()
+  await peopleHandler(
+    {
+      method: "GET",
+      headers: { cookie },
+      query: {},
+    } as unknown as Parameters<typeof peopleHandler>[0],
+    authorized.response
+  )
+  assert.equal(authorized.state.statusCode, 200)
+  assert.equal(
+    Number.isSafeInteger(
+      (authorized.state.body as { mediaExpiresAt: number }).mediaExpiresAt
+    ),
+    true
+  )
+  assert.deepEqual(
+    (authorized.state.body as { people: unknown[] }).people,
+    []
+  )
+
+  for (const person of ["Alex Godfrey", "", "person_alex", ["person-alex"]]) {
+    const invalid = createApiResponse()
+    await photosHandler(
+      {
+        method: "GET",
+        headers: { cookie },
+        query: { person },
+      } as unknown as Parameters<typeof photosHandler>[0],
+      invalid.response
+    )
+    assert.equal(invalid.state.statusCode, 400)
+    assert.deepEqual(invalid.state.body, { error: "Invalid person" })
   }
 })

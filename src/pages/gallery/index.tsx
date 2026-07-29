@@ -634,7 +634,7 @@ export default function GalleryPage({
   return (
     <>
       <Head>
-        <title>The Gallery — Alex &amp; Sierra</title>
+        <title>Gallery</title>
         <meta
           name="description"
           content="A private collection of Alex and Sierra’s wedding photographs."

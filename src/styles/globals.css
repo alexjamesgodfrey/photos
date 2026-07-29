@@ -1086,7 +1086,9 @@
   isolation: isolate;
   animation: lightbox-arrive 220ms ease both;
   overscroll-behavior: contain;
-  touch-action: pan-y;
+  /* The viewer owns every touch gesture (pinch, pan, swipe, dismiss);
+     nothing here should ever hand scrolling or zooming back to the page. */
+  touch-action: none;
 }
 
 .lightbox.is-closing {
@@ -1176,6 +1178,13 @@
   place-items: center;
   padding: 0.5rem 4.5rem 1rem;
   user-select: none;
+  /* Taps in the empty margin fall through to the backdrop (closing the
+     viewer); the photo itself re-enables pointer events below. */
+  pointer-events: none;
+}
+
+.lightbox__stage > * {
+  pointer-events: auto;
 }
 
 .lightbox__image {
@@ -1196,6 +1205,20 @@
 .lightbox__image.is-loaded {
   opacity: 1;
   transform: scale(1);
+}
+
+.lightbox__image {
+  cursor: zoom-in;
+  touch-action: none;
+}
+
+.lightbox.is-zoomed .lightbox__image {
+  cursor: grab;
+  will-change: transform;
+}
+
+.lightbox.is-zoomed .lightbox__image:active {
+  cursor: grabbing;
 }
 
 .lightbox__loader {

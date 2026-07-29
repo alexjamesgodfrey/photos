@@ -1,15 +1,10 @@
 "use client";
 
 import type { GalleryPhoto } from "@/components/PhotoCard";
+import { usePhotoZoom } from "@/components/usePhotoZoom";
 import { ArrowLeft, ArrowRight, ImageOff, Pause, Play, X } from "lucide-react";
 import Head from "next/head";
-import {
-  type PointerEvent as ReactPointerEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PhotoLightboxProps {
   photos: GalleryPhoto[];
@@ -67,8 +62,9 @@ export function PhotoLightbox({
   const [isClosing, setIsClosing] = useState(false);
   const [playing, setPlaying] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const backdropRef = useRef<HTMLButtonElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const pointerStart = useRef<number | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const reportedFailureUrl = useRef<string | null>(null);
   const closeTimer = useRef<number | null>(null);
@@ -99,6 +95,40 @@ export function PhotoLightbox({
     if (!hasNext) return;
     onSelect(photos[selectedIndex + 1].id);
   }, [hasNext, onSelect, photos, selectedIndex]);
+
+  const pauseSlideshow = useCallback(() => setPlaying(false), []);
+
+  const { zoomed, resetZoom, shouldSuppressClick, handlers } = usePhotoZoom({
+    imageRef,
+    stageRef,
+    backdropRef,
+    canSwipePrevious: hasPrevious,
+    canSwipeNext: hasNext,
+    onSwipePrevious: previous,
+    onSwipeNext: next,
+    onDismiss: close,
+    onTapOutside: close,
+    onZoomStart: pauseSlideshow,
+  });
+
+  // A new photograph always starts at its natural fit.
+  useEffect(() => {
+    resetZoom(false);
+  }, [currentDisplayUrl, resetZoom]);
+
+  // Belt and braces for iOS Safari: block its proprietary page-level pinch
+  // gesture while the viewer is open so only the photo zooms.
+  useEffect(() => {
+    const prevent = (event: Event) => event.preventDefault();
+    const options = { passive: false } as AddEventListenerOptions;
+
+    document.addEventListener("gesturestart", prevent, options);
+    document.addEventListener("gesturechange", prevent, options);
+    return () => {
+      document.removeEventListener("gesturestart", prevent, options);
+      document.removeEventListener("gesturechange", prevent, options);
+    };
+  }, []);
 
   // Slideshow: advance once the current photograph has been visible for a
   // beat, looping back to the first photo at the end of the collection.
@@ -212,33 +242,23 @@ export function PhotoLightbox({
 
   if (!selectedPhoto) return null;
 
-  const onPointerDown = (event: ReactPointerEvent) => {
-    if (event.pointerType !== "mouse") pointerStart.current = event.clientX;
-  };
-
-  const onPointerUp = (event: ReactPointerEvent) => {
-    if (pointerStart.current === null) return;
-    const movement = event.clientX - pointerStart.current;
-    pointerStart.current = null;
-
-    if (Math.abs(movement) < 55) return;
-    if (movement > 0) previous();
-    else next();
-  };
-
   return (
     <div
-      className={`lightbox ${isClosing ? "is-closing" : ""}`}
+      className={`lightbox ${isClosing ? "is-closing" : ""} ${
+        zoomed ? "is-zoomed" : ""
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label="Wedding photo viewer"
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
+      {...handlers}
     >
       <button
+        ref={backdropRef}
         type="button"
         className="lightbox__backdrop"
-        onClick={close}
+        onClick={() => {
+          if (!shouldSuppressClick()) close();
+        }}
         aria-label="Close photo viewer"
         tabIndex={-1}
       />
@@ -278,7 +298,7 @@ export function PhotoLightbox({
         </div>
       </div>
 
-      <div className="lightbox__stage">
+      <div ref={stageRef} className="lightbox__stage">
         {!imageLoaded && !imageFailed && (
           <div
             className="lightbox__loader"

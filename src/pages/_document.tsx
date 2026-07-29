@@ -9,7 +9,7 @@ export default function Document() {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <meta name="author" content="Alex & Sierra" />
+        <meta name="author" content="Alex Godfrey" />
         <meta name="color-scheme" content="light" />
         <meta name="msapplication-TileColor" content="#18231d" />
         <link rel="manifest" href="/site.webmanifest" />

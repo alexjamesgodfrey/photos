@@ -9,6 +9,8 @@ Checked on 2026-07-29 against primary documentation.
 | `noindex` can be set per private HTML route with robots metadata or `X-Robots-Tag`; `max-image-preview:large` permits a large preview for the public page. | confirmed | [Google Search Central: Robots meta tags](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag) |
 | A stable square favicon should be crawlable and is recommended at 48×48 pixels or larger for Search surfaces. | confirmed | [Google Search Central: Favicons](https://developers.google.com/search/docs/appearance/favicon-in-search) |
 | The public root uses a self-referencing canonical so duplicate URL signals converge on one preferred URL. | confirmed | [Google Search Central: Canonical URLs](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls) |
+| A normal HTML anchor with concise, relevant text is crawlable and helps search systems discover and understand its destination. | confirmed | [Google Search Central: Link best practices](https://developers.google.com/search/docs/crawling-indexing/links-crawlable) |
+| A single contextual reciprocal link can be legitimate, but excessive exchanges or pages created solely for cross-linking violate Google’s link-spam policy. | confirmed | [Google Search Central: Spam policies](https://developers.google.com/search/docs/essentials/spam-policies) |
 
 ## Privacy boundary
 

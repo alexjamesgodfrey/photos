@@ -205,7 +205,7 @@
 }
 
 .access-page.is-leaving .access-panel,
-.access-page.is-leaving .access-date {
+.access-page.is-leaving .access-footer {
   animation: access-leave 480ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
@@ -334,17 +334,110 @@
   text-align: center;
 }
 
-.access-date {
+.access-footer {
   position: absolute;
   right: 0;
   bottom: calc(1.35rem + env(safe-area-inset-bottom));
   left: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+}
+
+.access-date {
   margin: 0;
   color: rgba(255, 250, 242, 0.55);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-align: center;
+}
+
+.access-credit {
+  color: rgba(255, 250, 242, 0.58);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-decoration-color: rgba(255, 250, 242, 0.24);
+  text-underline-offset: 0.22rem;
+  transition:
+    color 160ms ease,
+    text-decoration-color 160ms ease;
+}
+
+.access-credit:hover {
+  color: rgba(255, 250, 242, 0.86);
+  text-decoration-color: rgba(255, 250, 242, 0.6);
+}
+
+.access-credit:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid rgba(255, 250, 242, 0.8);
+  outline-offset: 0.25rem;
+}
+
+/* Public 404 */
+
+.not-found-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 2rem;
+  background:
+    radial-gradient(
+      circle at 22% 18%,
+      rgba(164, 123, 81, 0.18),
+      transparent 24rem
+    ),
+    var(--wedding-paper);
+}
+
+.not-found-page__card {
+  max-width: 30rem;
+  text-align: center;
+}
+
+.not-found-page__eyebrow {
+  margin: 0 0 1rem;
+  color: var(--wedding-brass-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.not-found-page h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 7vw, 3.6rem);
+  font-weight: 400;
+  line-height: 1.02;
+}
+
+.not-found-page__card > p:not(.not-found-page__eyebrow) {
+  margin: 1.1rem 0 1.6rem;
+  color: var(--wedding-muted);
+  line-height: 1.6;
+}
+
+.not-found-page a {
+  display: inline-flex;
+  border: 1px solid var(--wedding-line);
+  border-radius: 999px;
+  padding: 0.8rem 1.15rem;
+  color: var(--wedding-green);
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.not-found-page a:hover {
+  border-color: rgba(100, 76, 51, 0.3);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.not-found-page a:focus-visible {
+  outline: 2px solid var(--wedding-brass);
+  outline-offset: 4px;
 }
 
 /* Gallery shell */

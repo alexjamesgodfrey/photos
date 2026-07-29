@@ -9,6 +9,7 @@ import { FormEvent, useState } from "react";
 const geist = Geist({ subsets: ["latin"] });
 const LEAVE_DURATION_MS = 520;
 const SITE_URL = "https://photos.alexgodfrey.com/";
+const CREATOR_URL = "https://www.alexgodfrey.com/";
 const SITE_TITLE = "Alex & Sierra’s Wedding Photos | July 12, 2025";
 const SITE_DESCRIPTION =
   "The private wedding photo gallery for Alex and Sierra’s lakeside celebration on July 12, 2025.";
@@ -21,6 +22,11 @@ const websiteStructuredData = {
   alternateName: ["Alex & Sierra", "Alex and Sierra Wedding Photos"],
   url: SITE_URL,
   description: SITE_DESCRIPTION,
+  creator: {
+    "@type": "Person",
+    name: "Alex Godfrey",
+    url: CREATOR_URL,
+  },
 };
 
 export const getServerSideProps: GetServerSideProps = async ({ req }) => {
@@ -116,6 +122,7 @@ export default function HomePage() {
           content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
         />
         <link rel="canonical" href={SITE_URL} />
+        <link rel="author" href={CREATOR_URL} />
         <meta name="theme-color" content="#18231d" key="theme-color" />
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="en_US" />
@@ -207,7 +214,12 @@ export default function HomePage() {
           </form>
         </section>
 
-        <p className="access-date">July 12, 2025</p>
+        <footer className="access-footer">
+          <p className="access-date">July 12, 2025</p>
+          <a className="access-credit" href={CREATOR_URL} rel="author">
+            Gallery by Alex Godfrey
+          </a>
+        </footer>
       </main>
     </>
   );

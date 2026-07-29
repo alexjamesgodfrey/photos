@@ -20,22 +20,24 @@ Rollback: restore the previous global `X-Robots-Tag` and remove the public canon
   and exposed the canonical profile through `rel="author"`.
 - Added a custom 404 with a real heading, a useful return link, and
   `noindex, follow` metadata.
-- Added one restrained reciprocal “Wedding gallery” link to the personal-site
-  footer. No private gallery URL, photo, person-filter page, or API route was
-  made indexable.
+- Kept the relationship one-way: the gallery credits its creator, while the
+  professional portfolio does not link back to the private wedding entrance.
+  No private gallery URL, photo, person-filter page, or API route was made
+  indexable.
 
 Hypothesis: the matching visible and structured creator relationship will make
 the connection between the wedding subdomain and Alex’s canonical profile
 clearer while keeping the private gallery out of search.
 
 Expected impact: small discovery and entity-association improvement; no ranking
-change is guaranteed. The reciprocal link is intentionally contextual and
-limited to one location on each public home page.
+change is guaranteed. The creator link is intentionally contextual and limited
+to the gallery’s public entrance.
 
 Tracking plan: verify both links and the JSON-LD in raw production HTML, then
 monitor Search Console links and branded-query impressions after recrawl.
 
-Rollback: remove the two footer links, `rel="author"`, and the `creator` node;
-the gallery’s authentication and indexing boundaries are otherwise unchanged.
+Rollback: remove the gallery creator link, `rel="author"`, and the `creator`
+node; the gallery’s authentication and indexing boundaries are otherwise
+unchanged.
 
 Owner: Alex Godfrey. Recheck by: 2026-08-26.

@@ -44,9 +44,25 @@ const nextConfig: NextConfig = {
             value:
               "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
           },
+        ],
+      },
+      {
+        source: "/gallery/:path*",
+        headers: [
           {
             key: "X-Robots-Tag",
-            value: "noindex, nofollow, noarchive, nosnippet",
+            value:
+              "noindex, nofollow, noarchive, noimageindex, nosnippet",
+          },
+        ],
+      },
+      {
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value:
+              "noindex, nofollow, noarchive, noimageindex, nosnippet",
           },
         ],
       },

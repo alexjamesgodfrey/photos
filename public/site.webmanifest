@@ -1,0 +1,21 @@
+{
+  "name": "Alex & Sierra’s Wedding Photos",
+  "short_name": "Alex & Sierra",
+  "description": "The private wedding photo gallery for Alex and Sierra’s lakeside celebration.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#18231d",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

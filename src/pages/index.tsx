@@ -8,6 +8,20 @@ import { FormEvent, useState } from "react";
 
 const geist = Geist({ subsets: ["latin"] });
 const LEAVE_DURATION_MS = 520;
+const SITE_URL = "https://photos.alexgodfrey.com/";
+const SITE_TITLE = "Alex & Sierra’s Wedding Photos | July 12, 2025";
+const SITE_DESCRIPTION =
+  "The private wedding photo gallery for Alex and Sierra’s lakeside celebration on July 12, 2025.";
+const OG_IMAGE_URL = `${SITE_URL}og-image.jpg`;
+
+const websiteStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Alex & Sierra’s Wedding",
+  alternateName: ["Alex & Sierra", "Alex and Sierra Wedding Photos"],
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+};
 
 export const getServerSideProps: GetServerSideProps = async ({ req }) => {
   try {
@@ -91,17 +105,50 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Alex &amp; Sierra — Wedding Photos</title>
+        <title>{SITE_TITLE}</title>
+        <meta name="description" content={SITE_DESCRIPTION} />
         <meta
-          name="description"
-          content="A private collection of memories from Alex and Sierra’s wedding."
+          name="robots"
+          content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
         />
-        <meta name="robots" content="noindex, nofollow, noarchive" />
-        <meta name="theme-color" content="#18231d" key="theme-color" />
-        <meta property="og:title" content="Alex & Sierra — Wedding Photos" />
         <meta
-          property="og:description"
-          content="A private collection of memories from Alex and Sierra’s wedding."
+          name="googlebot"
+          content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        />
+        <link rel="canonical" href={SITE_URL} />
+        <meta name="theme-color" content="#18231d" key="theme-color" />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:url" content={SITE_URL} />
+        <meta property="og:title" content={SITE_TITLE} />
+        <meta property="og:description" content={SITE_DESCRIPTION} />
+        <meta property="og:site_name" content="Alex & Sierra’s Wedding" />
+        <meta property="og:image" content={OG_IMAGE_URL} />
+        <meta property="og:image:secure_url" content={OG_IMAGE_URL} />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta
+          property="og:image:alt"
+          content="Alex and Sierra embracing beside the lake on their wedding day"
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={SITE_URL} />
+        <meta name="twitter:title" content={SITE_TITLE} />
+        <meta name="twitter:description" content={SITE_DESCRIPTION} />
+        <meta name="twitter:image" content={OG_IMAGE_URL} />
+        <meta
+          name="twitter:image:alt"
+          content="Alex and Sierra embracing beside the lake on their wedding day"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteStructuredData).replace(
+              /</g,
+              "\\u003c",
+            ),
+          }}
         />
       </Head>
 
@@ -112,6 +159,7 @@ export default function HomePage() {
         <div className="access-page__grain" aria-hidden="true" />
 
         <section className="access-panel" aria-label="Private gallery entrance">
+          <h1 className="sr-only">Alex and Sierra’s wedding photographs</h1>
           <div className="access-monogram" aria-label="Alex and Sierra">
             <span>A</span>
             <i aria-hidden="true" />

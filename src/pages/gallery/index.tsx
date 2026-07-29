@@ -639,7 +639,14 @@ export default function GalleryPage({
           name="description"
           content="A private collection of Alex and Sierra’s wedding photographs."
         />
-        <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta
+          name="robots"
+          content="noindex, nofollow, noarchive, noimageindex"
+        />
+        <meta
+          name="googlebot"
+          content="noindex, nofollow, noarchive, noimageindex"
+        />
         <meta name="theme-color" content="#f7f3ec" key="theme-color" />
       </Head>
 
